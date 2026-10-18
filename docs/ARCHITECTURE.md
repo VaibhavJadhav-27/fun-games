@@ -43,6 +43,7 @@ This document covers how the system is built: its structure, protocol, interface
 | D8 | A **single emit chokepoint** (`Broadcaster`), enforced by lint | Leaks happen at emit sites. If one module can emit and it only accepts typed `RoomInfo` / `PlayerView` / addressed notices, a leak needs a type error plus a lint bypass. |
 | D9 | Views are **validated at runtime against strict zod schemas** before they're sent | `.strict()` rejects unknown keys, so a stray `imposterId` added to a view fails closed in development, tests and production. |
 | D10 | Word lists live in a **server-only** `packages/content`, organised by genre, with a difficulty tag on each word | Clients never need the word lists. Keeping them out saves bundle size and stops anyone reading candidate words in DevTools. Genre metadata (id, name, word counts per difficulty) is in `shared` for the lobby picker. Imposter and Pictionary share one `pickWords(genres, difficulty, n, rng)` function. |
+| D18 | TypeScript pinned to **6.0.x** | typescript-eslint (which provides linting and the boundary rules) supports TypeScript below 6.1 only. Revisit when it supports TS 7. |
 | D17 | **Host controls are game actions** with an `isHost` flag. Ending a game early is a generic room command | The game decides what Start vote, Next or End turn mean in its current phase, so the room code stays game-agnostic. Every game supports ending early the same way through `def.abort()`. |
 | D11 | In-memory rooms, single process, synchronous dispatch per room | Node is single-threaded and each dispatch runs without awaiting, so there are no locks or races. Rooms are short-lived. Redis isn't needed until there's more than one instance. |
 | D12 | Immutable state, deep-frozen in development and tests (no immer) | Mutations throw during tests, which keeps rollback correct. Hand-written spreads are fine at this state size, so we avoid a dependency. |
@@ -147,7 +148,7 @@ interface RoomInfo {                            // public, sent to everyone in t
 }
 ```
 
-On the server, a `Room` also holds: `sessions: Map<tokenHash, PlayerId>`, `socketByPlayer: Map<PlayerId, SocketId>`, `game: { def, state, streamBuffer } | null`, its scheduler handle, and timestamps for expiry. `RoomInfo` is built by one function (`toRoomInfo(room)`) that never reads `room.game.state`.
+On the server, a `Room` also holds: `sessions: Map<tokenHash, PlayerId>`, `game: { def, state, streamBuffer } | null`, its scheduler handle, and timestamps for expiry. `Room` is socket-agnostic: the transport layer's `SocketRegistry` maps (room, player) to the one live socket and calls `room.attach` / `room.detach`, and the room reports changes through hooks. Fields marked for later milestones (`settings`, `chatEnabled`, `result`) are added to `RoomInfo` when they're built. `RoomInfo` is built by one function (`toRoomInfo(room)`) that never reads `room.game.state`.
 
 ---
 
