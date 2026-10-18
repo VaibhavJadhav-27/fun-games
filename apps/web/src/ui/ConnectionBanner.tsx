@@ -7,7 +7,7 @@ export function ConnectionBanner() {
   return (
     <div
       role="status"
-      className="sticky top-0 z-20 -mx-4 bg-warn px-4 py-2 text-center text-sm font-semibold text-ink"
+      className="sticky top-0 z-20 -mx-4 bg-warn px-4 py-2 text-center text-sm font-semibold text-black/85"
     >
       Reconnecting…
     </div>

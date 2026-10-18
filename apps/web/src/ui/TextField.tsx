@@ -16,7 +16,7 @@ export function TextField({ label, error, id, className = '', ...rest }: TextFie
         id={inputId}
         {...rest}
         aria-invalid={error ? true : undefined}
-        className={`min-h-12 rounded-2xl border bg-panel-2 px-4 text-lg text-white placeholder:text-muted/60 outline-none focus:border-accent ${
+        className={`min-h-12 rounded-2xl border bg-panel-2 px-4 text-lg text-fg placeholder:text-muted/60 outline-none focus:border-accent ${
           error ? 'border-bad' : 'border-line'
         } ${className}`}
       />

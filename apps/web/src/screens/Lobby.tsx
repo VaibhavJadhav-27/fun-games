@@ -139,7 +139,7 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
             </>
           ) : (
             <p className="py-3 text-center text-muted">
-              Waiting for <span className="font-semibold text-white">{host?.name ?? 'the host'}</span> to start…
+              Waiting for <span className="font-semibold text-fg">{host?.name ?? 'the host'}</span> to start…
             </p>
           )}
         </div>

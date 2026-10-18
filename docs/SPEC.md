@@ -200,6 +200,7 @@ Client-side hiding is never acceptable. If it's in the network payload, it count
 ## 6. Non-functional requirements
 
 - **Mobile-first:** usable at 360px width, large tap targets (44px+), no horizontal scroll.
+- **Light / dark theme:** a toggle on every screen. On a first visit it follows the device's system setting; once a player picks, their choice is remembered on that device.
 - **Latency:** game actions reflect on other screens in under 300ms on a normal connection. Pictionary strokes should feel live (batch points every ~50ms).
 - **Robustness:** the server validates every action: is it this player's turn, is the phase correct, is the target valid. Invalid actions are rejected with an error and never crash the room.
 - **Timers are server-side.** Clients only display the countdown from a server-provided deadline.
@@ -222,3 +223,4 @@ Client-side hiding is never acceptable. If it's in the network payload, it count
 | 2026-10-18 | Traitor night ends as soon as all traitors lock the same target (60s safety cap, then no kill). |
 | 2026-10-18 | Pictionary is untimed: the turn ends when everyone has guessed or on End turn. Flat scoring (+100 guesser, +25 drawer per guess), and the drawer reveals hint letters. |
 | 2026-10-18 | Genres + difficulty (Easy/Medium/Hard/Mixed) are shared by Imposter and Pictionary. |
+| 2026-10-18 | Light/dark theme toggle on every screen; defaults to the system setting. |

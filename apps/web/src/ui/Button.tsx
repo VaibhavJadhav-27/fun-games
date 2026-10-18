@@ -4,8 +4,8 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 const VARIANTS: Record<Variant, string> = {
   primary: 'bg-accent text-white active:bg-accent-strong disabled:bg-panel-2 disabled:text-muted',
-  secondary: 'bg-panel-2 text-white border border-line active:bg-line disabled:text-muted',
-  ghost: 'bg-transparent text-muted active:text-white disabled:opacity-50',
+  secondary: 'bg-panel-2 text-fg border border-line active:bg-line disabled:text-muted',
+  ghost: 'bg-transparent text-muted active:text-fg disabled:opacity-50',
   danger: 'bg-transparent text-bad border border-bad/40 active:bg-bad/10 disabled:opacity-50',
 };
 
