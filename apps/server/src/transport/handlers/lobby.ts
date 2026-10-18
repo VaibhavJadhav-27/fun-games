@@ -14,6 +14,12 @@ export function registerLobbyHandlers(socket: AppSocket, gateway: Gateway, on: O
     return member.value.room.kick(member.value.playerId, playerId);
   });
 
+  on('lobby:setSettings', ({ settings }) => {
+    const member = gateway.membership(socket);
+    if (!member.ok) return member;
+    return member.value.room.setSettings(member.value.playerId, settings);
+  });
+
   on('game:start', () => {
     const member = gateway.membership(socket);
     if (!member.ok) return member;

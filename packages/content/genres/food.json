@@ -1,0 +1,23 @@
+{
+  "id": "food",
+  "name": "Food & Drinks",
+  "easy": [
+    "Pizza", "Burger", "Samosa", "Biryani", "Dosa", "Idli", "Pani Puri", "Chai", "Coffee", "Ice Cream", "Chocolate",
+    "Cake", "Sandwich", "Noodles", "Pasta", "French Fries", "Paratha", "Roti", "Rice", "Dal", "Paneer",
+    "Butter Chicken", "Maggi", "Popcorn", "Lassi", "Juice", "Milkshake", "Egg", "Bread", "Biscuit", "Jalebi",
+    "Gulab Jamun", "Vada Pav", "Pav Bhaji", "Momos"
+  ],
+  "medium": [
+    "Chole Bhature", "Rajma Chawal", "Dhokla", "Khichdi", "Poha", "Upma", "Uttapam", "Medu Vada", "Bhel Puri",
+    "Kachori", "Aloo Paratha", "Malai Kofta", "Palak Paneer", "Tandoori Chicken", "Kebab", "Shawarma", "Rasgulla",
+    "Kheer", "Halwa", "Ladoo", "Kulfi", "Falooda", "Nimbu Pani", "Coconut Water", "Hot Chocolate", "Cold Coffee",
+    "Donut", "Brownie", "Pancake", "Waffle", "Omelette", "Soup", "Salad", "Sushi", "Tacos"
+  ],
+  "hard": [
+    "Dal Makhani", "Pongal", "Appam", "Puttu", "Litti Chokha", "Misal Pav", "Dabeli", "Thepla", "Undhiyu",
+    "Rogan Josh", "Nihari", "Haleem", "Bisi Bele Bath", "Sarson Ka Saag", "Makki Di Roti", "Ras Malai",
+    "Mysore Pak", "Modak", "Shrikhand", "Basundi", "Aam Panna", "Jaljeera", "Thandai", "Filter Coffee", "Lasagna",
+    "Risotto", "Croissant", "Quesadilla", "Burrito", "Dim Sum", "Ramen", "Tiramisu", "Cheesecake", "Macaron",
+    "Mojito"
+  ]
+}

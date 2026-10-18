@@ -1,0 +1,25 @@
+{
+  "id": "office",
+  "name": "Office",
+  "easy": [
+    "Laptop", "Desk", "Chair", "Meeting", "Boss", "Email", "Coffee Break", "Lunch", "Salary", "Holiday", "Printer",
+    "Phone Call", "Notebook", "Computer", "Keyboard", "Mouse", "Lift", "Parking", "Team", "Manager", "Interview",
+    "Resume", "Deadline", "Presentation", "Whiteboard", "Water Cooler", "Canteen", "ID Card", "Weekend",
+    "Overtime", "Promotion", "Office Party", "Birthday Cake", "Calculator", "Pen"
+  ],
+  "medium": [
+    "Appraisal", "Bonus", "Leave Application", "Work From Home", "Video Call", "Conference Room", "Reception",
+    "Visitor Pass", "Cubicle", "Stapler", "Sticky Notes", "Projector", "Spreadsheet", "Password", "Wi-Fi",
+    "Laptop Bag", "Team Lunch", "Farewell", "Joining Day", "Notice Period", "Client", "Invoice", "Target", "Report",
+    "Attendance", "HR", "Intern", "Training", "Feedback", "Agenda", "Lanyard", "Pantry", "Shift", "Reminder",
+    "Office Gossip"
+  ],
+  "hard": [
+    "Performance Review", "Town Hall", "Offsite", "Team Building", "Brainstorming", "Stand-up Meeting",
+    "Minutes of Meeting", "Budget", "Quarterly Results", "Hike", "Resignation", "Exit Interview",
+    "Background Check", "Onboarding", "Payroll", "Reimbursement", "Audit", "Compliance", "Org Chart", "KPI",
+    "Hackathon", "Server Room", "Firewall", "Out of Office", "Calendar Invite", "Reply All", "Escalation",
+    "Hot Desk", "Secret Santa", "Casual Friday", "Coffee Machine", "Paper Shredder", "Business Card",
+    "Night Shift", "Mute Button"
+  ]
+}

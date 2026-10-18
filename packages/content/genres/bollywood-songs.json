@@ -1,0 +1,30 @@
+{
+  "id": "bollywood-songs",
+  "name": "Bollywood Songs",
+  "easy": [
+    "Chaiyya Chaiyya", "Tujhe Dekha To", "Kal Ho Naa Ho", "Tum Hi Ho", "Kajra Re", "Sheila Ki Jawani",
+    "Munni Badnaam Hui", "Lungi Dance", "Gerua", "Kabira", "Chak De India", "Dhoom Machale", "Jai Ho",
+    "Desi Girl", "Balam Pichkari", "Badtameez Dil", "Kesariya", "Channa Mereya", "Kala Chashma", "Dilbar",
+    "Ghoomar", "Malhari", "Jhoome Jo Pathaan", "Besharam Rang", "Chammak Challo", "Kuch Kuch Hota Hai",
+    "Koi Mil Gaya", "Dil To Pagal Hai", "Ek Do Teen", "Tip Tip Barsa Paani", "Mehndi Laga Ke Rakhna",
+    "Apna Time Aayega", "Senorita", "London Thumakda", "Tauba Tauba", "Aaj Ki Raat"
+  ],
+  "medium": [
+    "Ilahi", "Ae Dil Hai Mushkil", "Tum Se Hi", "Pee Loon", "Bekhayali", "Tujh Mein Rab Dikhta Hai",
+    "Swag Se Swagat", "Saki Saki", "Ghungroo", "Nagada Sang Dhol", "Kar Gayi Chull", "Abhi Toh Party Shuru Hui Hai",
+    "Baby Doll", "Tune Maari Entriyaan", "Gallan Goodiyaan", "The Breakup Song", "Bole Chudiyan",
+    "Suraj Hua Maddham", "Pehla Nasha", "Choli Ke Peeche", "Didi Tera Devar Deewana", "Aankh Maare",
+    "Ainvayi Ainvayi", "Mauja Hi Mauja", "Matargashti", "Galliyan", "Raabta", "Kun Faya Kun", "Agar Tum Saath Ho",
+    "Bulleya", "Khairiyat", "Ve Maahi", "Raataan Lambiyan", "Apna Bana Le", "Chaleya", "What Jhumka",
+    "Pappu Can't Dance", "Dance Basanti", "Teri Mitti", "Zinda"
+  ],
+  "hard": [
+    "Tujhe Yaad Na Meri Aayi", "Ladki Badi Anjani Hai", "Nashe Si Chadh Gayi", "Hawayein", "Tum Jo Aaye",
+    "Phir Bhi Tumko Chaahunga", "Tere Vaaste", "Zinda Banda", "Pehle Bhi Main", "Arjan Vailly", "Kaise Hua",
+    "Hosanna", "Dil Diyan Gallan", "Main Agar Kahoon", "Tum Mile", "Kabhi Kabhi Aditi", "Nadaan Parindey",
+    "Sooraj Dooba Hain", "Mast Magan", "Sun Raha Hai", "Tera Ban Jaunga", "Aankhon Mein Teri", "Masakali",
+    "Kabhi Jo Baadal Barse", "Ishq Wala Love", "Tera Hone Laga Hoon", "Jeene Laga Hoon", "Bhaag DK Bose",
+    "Hamari Adhuri Kahani", "Phir Le Aya Dil", "Tum Kya Mile", "Dil Dhadakne Do", "Saiyaara", "O Saathi",
+    "Kaun Tujhe"
+  ]
+}

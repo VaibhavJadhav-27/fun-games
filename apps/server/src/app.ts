@@ -2,6 +2,8 @@ import { existsSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import sirv from 'sirv';
+import { loadWordBank } from '@party/content';
+import type { Rng } from './engine/rng';
 import { createSocketLayer, type SocketLayer } from './transport/server';
 
 export interface AppOptions {
@@ -11,6 +13,8 @@ export interface AppOptions {
   allowedOrigin?: string;
   /** Per-IP limit on room creation. Raised in tests, where every client shares one IP. */
   roomCreatesPerMinute?: number;
+  /** Seeded rng per game, for tests. */
+  rng?: () => Rng;
 }
 
 export interface App {
@@ -46,6 +50,8 @@ export async function startApp(options: AppOptions): Promise<App> {
   sockets = createSocketLayer(httpServer, {
     allowedOrigin: options.allowedOrigin,
     roomCreatesPerMinute: options.roomCreatesPerMinute,
+    bank: loadWordBank(),
+    rng: options.rng,
   });
   sockets.manager.startSweeper();
   const pruner = setInterval(() => sockets?.pruneRateLimits(), 60_000);

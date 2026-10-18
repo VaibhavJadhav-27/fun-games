@@ -189,7 +189,8 @@ Client-side hiding is never acceptable. If it's in the network payload, it count
 
 ## 5. Content
 
-- Word lists are organised by **genre**. Each genre is a JSON file: `{ id, name, words: [{ text, difficulty: 'easy' | 'medium' | 'hard' }] }`.
+- Word lists are organised by **genre**. Each genre is a JSON file: `{ id, name, easy: [...], medium: [...], hard: [...] }`.
+- Bollywood Movies are Hindi film titles from 1990 onwards; Bollywood Songs are Hindi song titles. Every other genre is in English.
 - Both Imposter and Pictionary use the same genres, difficulty setting and genre picker.
 - v1 genres: Bollywood Movies, Hollywood Movies, Bollywood Songs, Fruits & Vegetables, Animals, Food, Places, Objects, Office, Random Words.
 - Each genre ships with 100+ words and at least 30 words per difficulty level. "Mixed" draws from all levels.

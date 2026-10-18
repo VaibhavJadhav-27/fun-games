@@ -1,7 +1,16 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { GAME_IDS, GAME_META, MAX_MEMBERS, type GameId, type MemberInfo, type RoomInfo } from '@party/shared';
-import { closeRoom, kickPlayer, leaveRoom, setGame, startGame } from '../socket/actions';
+import {
+  GAME_IDS,
+  GAME_META,
+  MAX_MEMBERS,
+  type GameId,
+  type ImposterSettings,
+  type MemberInfo,
+  type RoomInfo,
+} from '@party/shared';
+import { ImposterSettingsPanel } from '../games/imposter/ImposterSettingsPanel';
+import { closeRoom, kickPlayer, leaveRoom, setGame, setSettings, startGame } from '../socket/actions';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { PlayerList } from '../ui/PlayerList';
@@ -22,6 +31,11 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
     setError(res.ok ? null : res.error.message);
   }
 
+  async function onSettings(next: ImposterSettings) {
+    const res = await setSettings(next);
+    setError(res.ok ? null : res.error.message);
+  }
+
   async function onKick(member: MemberInfo) {
     if (!window.confirm(`Remove ${member.name} from the room?`)) return;
     const res = await kickPlayer(member.id);
@@ -32,9 +46,7 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
     setStarting(true);
     const res = await startGame();
     setStarting(false);
-    if (!res.ok) {
-      setError(res.error.code === 'GAME_UNAVAILABLE' ? 'Games are coming in the next update.' : res.error.message);
-    }
+    setError(res.ok ? null : res.error.message);
   }
 
   async function onLeave() {
@@ -78,7 +90,14 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
                   }`}
                 >
                   <span className="flex w-full items-baseline justify-between gap-2">
-                    <span className="text-lg font-bold">{meta.name}</span>
+                    <span className="text-lg font-bold">
+                      {meta.name}
+                      {!meta.available && (
+                        <span className="ml-2 rounded-full bg-panel px-2 py-0.5 align-middle text-xs font-semibold text-muted">
+                          Coming soon
+                        </span>
+                      )}
+                    </span>
                     <span className="text-xs text-muted">
                       {meta.minPlayers}–{meta.maxPlayers} players
                     </span>
@@ -100,6 +119,17 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
           ))}
         </ol>
       </Card>
+
+      {room.gameId === 'imposter' && (
+        <Card title="Settings">
+          <ImposterSettingsPanel
+            settings={room.settings as ImposterSettings}
+            playerCount={active.length}
+            editable={isHost}
+            onChange={onSettings}
+          />
+        </Card>
+      )}
 
       <Card
         title="Players"

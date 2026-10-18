@@ -31,6 +31,12 @@ export function saveSession(code: string, session: StoredSession): void {
   }
 }
 
+/** The host moved us into another seat: same token, new player id. */
+export function updateSessionPlayer(code: string, playerId: PlayerId): void {
+  const session = loadSession(code);
+  if (session) saveSession(code, { ...session, playerId });
+}
+
 export function clearSession(code: string): void {
   try {
     localStorage.removeItem(sessionKey(code));

@@ -111,7 +111,7 @@ party-games/
     │   ├── games/<id>.ts             # Settings, Action, PlayerView (+ zod schemas), Notice
     │   └── genres.ts                 # genre metadata only: { id, name, counts: { easy, medium, hard } }
     └── content/                      # server-only (web must not depend on it)
-        └── genres/<id>.json          # { id, name, words: [{ text, difficulty }] }; validated by zod at boot
+        └── genres/<id>.json          # { id, name, easy[], medium[], hard[] }; validated by zod at boot
 ```
 
 **Boundary rules (lint-enforced):** `apps/web` must not import `packages/content`. Only `transport/` may import `socket.io`. Only `transport/broadcaster.ts` may call `.emit` or `.to(`. `games/` must not import `rooms/`, `transport/`, `Date`, or `Math.random`.
@@ -191,7 +191,7 @@ Settings are revalidated whenever the member count changes. If a setting becomes
 - **Presence goes to the game as an input** (`{kind: 'presence'}`), and each game applies its own away rules (§8).
 - **Host transfer:** if the host has been `away` for 60s, the host role passes to the online member with the earliest `joinedAt`. If the host leaves or is kicked, the transfer happens immediately. The old host doesn't get the role back on return.
 - **Kick:** the host can kick in the lobby or mid-game, but not themselves. The token is revoked, the socket gets `session:ended {reason: 'kicked'}`, and during a game the player is treated as `left`.
-- **Seat reassign (a player lost their token):** the player rejoins under a new name as a waiting member. The host taps an `away`/`left` player and chooses "Give this seat to <new>". The server moves the old `PlayerId`'s seat to the new socket. The waiting member record is deleted and the new token maps to the **old** PlayerId, so game state needs no change. The new display name replaces the old one.
+- **Seat reassign (a player lost their token):** the player rejoins under a new name as a waiting member. The host taps an `away`/`left` player and chooses "Give this seat to <new>". The server moves the old `PlayerId`'s seat to the new socket. The waiting member record is deleted and the new token maps to the **old** PlayerId, so game state needs no change. The seat keeps its original display name, so the game and the room list stay consistent.
 
 ---
 
@@ -227,7 +227,7 @@ type GameInput<A> =
 type Addressed<N> = { to: 'all' | PlayerId[]; notice: N };   // "So close!" → [guesser]
 
 type Step<S, N> =
-  | { ok: true; state: S; notices?: Addressed<N>[] }
+  | { ok: true; state: S; notices?: Addressed<N>[] }   // notices arrive with Pictionary (M4); Imposter needs none
   | { ok: false; error: GameErrorCode };             // NOT_YOUR_TURN, WRONG_PHASE, INVALID_TARGET…
 
 interface GameDefinition<S extends BaseState, A, V extends BaseView, Cfg, N> {

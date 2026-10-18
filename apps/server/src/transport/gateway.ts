@@ -13,6 +13,7 @@ import { err, ok, type Result } from '../rooms/result';
 import type { Room } from '../rooms/room';
 import type { RoomManager } from '../rooms/roomManager';
 import type { Broadcaster } from './broadcaster';
+import { registerGameHandlers } from './handlers/game';
 import { registerLobbyHandlers } from './handlers/lobby';
 import { registerRoomHandlers } from './handlers/room';
 import { KeyedRateLimiter, TokenBucket } from './rateLimit';
@@ -99,6 +100,7 @@ export function attachGateway(io: AppServer, gateway: Gateway): void {
     on('time:sync', () => ok({ serverNow: Date.now() }));
     registerRoomHandlers(socket, gateway, on);
     registerLobbyHandlers(socket, gateway, on);
+    registerGameHandlers(socket, gateway, on);
 
     socket.on('disconnect', () => gateway.unbind(socket, { detach: true }));
   });
@@ -118,7 +120,7 @@ function listen<E extends ClientEventName>(
     if (!parsed.success) return reply(failure('BAD_REQUEST'));
     try {
       const result = handler(parsed.data as ParsedClientPayload<E>);
-      reply(result.ok ? { ok: true, data: result.value } : failure(result.code));
+      reply(result.ok ? { ok: true, data: result.value } : failure(result.code, result.message));
     } catch (error) {
       log.error('handler failed', { event, room: socket.data.code, ...errorFields(error) });
       reply(failure('INTERNAL'));
@@ -131,6 +133,6 @@ function listen<E extends ClientEventName>(
   );
 }
 
-function failure(code: ErrorCode): Ack<never> {
-  return { ok: false, error: { code, message: DEFAULT_ERROR_MESSAGES[code] } };
+function failure(code: ErrorCode, message?: string): Ack<never> {
+  return { ok: false, error: { code, message: message ?? DEFAULT_ERROR_MESSAGES[code] } };
 }

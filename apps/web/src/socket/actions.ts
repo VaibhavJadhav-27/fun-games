@@ -2,7 +2,9 @@ import {
   DEFAULT_ERROR_MESSAGES,
   type Ack,
   type AckData,
+  type AnyGameSettings,
   type ClientEventName,
+  type ImposterAction,
   type ClientPayload,
   type GameId,
   type PlayerId,
@@ -77,8 +79,20 @@ export async function leaveRoom(code: string) {
 
 export const closeRoom = () => request('room:close', {});
 export const setGame = (gameId: GameId) => request('lobby:setGame', { gameId });
+export const setSettings = (settings: AnyGameSettings) => request('lobby:setSettings', { settings });
 export const kickPlayer = (playerId: PlayerId) => request('lobby:kick', { playerId });
 export const startGame = () => request('game:start', {});
+export const endGame = () => request('game:end', {});
+export const playAgain = () => request('results:playAgain', {});
+export const backToLobby = () => request('results:toLobby', {});
+export const reassignSeat = (fromPlayerId: PlayerId, toPlayerId: PlayerId) =>
+  request('host:reassignSeat', { fromPlayerId, toPlayerId });
+
+/** Send a game action for the phase currently on screen (stale taps are rejected server-side). */
+export function gameAction(action: ImposterAction) {
+  const phaseSeq = useStore.getState().view?.phaseSeq ?? 0;
+  return request('game:action', { phaseSeq, action });
+}
 
 export function clearEnded(): void {
   useStore.setState({ ended: null });

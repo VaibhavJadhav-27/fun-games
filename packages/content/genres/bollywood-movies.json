@@ -1,0 +1,31 @@
+{
+  "id": "bollywood-movies",
+  "name": "Bollywood Movies",
+  "easy": [
+    "Dilwale Dulhania Le Jayenge", "Kuch Kuch Hota Hai", "Kabhi Khushi Kabhie Gham", "Lagaan", "3 Idiots",
+    "PK", "Dangal", "Bajrangi Bhaijaan", "Sultan", "Dhoom", "Chennai Express", "Krrish", "Koi Mil Gaya",
+    "Kal Ho Naa Ho", "Om Shanti Om", "Jab We Met", "Munna Bhai MBBS", "Hera Pheri", "Golmaal",
+    "Zindagi Na Milegi Dobara", "Yeh Jawaani Hai Deewani", "Chak De India", "Taare Zameen Par", "Ghajini",
+    "Dil Chahta Hai", "Pathaan", "Jawan", "Animal", "Stree", "Kabir Singh", "Hum Aapke Hain Koun",
+    "Mohabbatein", "Rang De Basanti", "Bhool Bhulaiyaa", "Dabangg", "Singham", "Ek Tha Tiger", "Don",
+    "Devdas", "Main Hoon Na"
+  ],
+  "medium": [
+    "Veer-Zaara", "Housefull", "Welcome", "Tiger Zinda Hai", "War", "Padmaavat", "Bajirao Mastani", "Queen",
+    "Barfi", "Andhadhun", "Uri", "Kesari", "Drishyam", "Dil To Pagal Hai", "Kaho Naa Pyaar Hai",
+    "Rab Ne Bana Di Jodi", "My Name Is Khan", "Race", "Rockstar", "Gully Boy", "Tanhaji", "Raazi", "Kahaani",
+    "Wake Up Sid", "Rock On", "Swades", "Fanaa", "Jodhaa Akbar", "Bang Bang", "Happy New Year", "Brahmastra",
+    "12th Fail", "Dunki", "Shershaah", "Sanju", "Karan Arjun", "Baazigar", "Border", "Rangeela",
+    "Andaz Apna Apna", "Judwaa", "Chhichhore", "Phir Hera Pheri", "Lage Raho Munna Bhai", "Gadar"
+  ],
+  "hard": [
+    "Dil Se", "Taal", "Jo Jeeta Wohi Sikandar", "Saajan", "Aashiqui", "Mohra", "Biwi No. 1", "Coolie No. 1",
+    "Kabhi Haan Kabhi Naa", "Yes Boss", "Pardes", "Chalte Chalte", "Baghban", "Hum Tum", "Bunty Aur Babli",
+    "Salaam Namaste", "Namastey London", "Singh Is Kinng", "Dostana", "Jab Tak Hai Jaan", "Ek Villain",
+    "Highway", "Haider", "Badlapur", "Masaan", "Neerja", "Udta Punjab", "Hindi Medium", "Tumbbad", "Super 30",
+    "Thappad", "Ludo", "Sardar Udham", "Gangubai Kathiawadi", "Laapataa Ladies", "Munjya",
+    "Rocky Aur Rani Kii Prem Kahaani", "Article 15", "Piku", "Delhi Belly", "Gangs of Wasseypur", "Badhaai Ho",
+    "Dil Dhadakne Do", "Chhaava", "Saiyaara", "Teri Baaton Mein Aisa Uljha Jiya", "Zara Hatke Zara Bachke",
+    "Tu Jhoothi Main Makkaar"
+  ]
+}

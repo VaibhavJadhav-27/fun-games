@@ -1,3 +1,5 @@
+import type { AnyGameSettings } from './games';
+
 export type PlayerId = string;
 
 export const GAME_IDS = ['imposter', 'traitor', 'pictionary'] as const;
@@ -24,7 +26,23 @@ export interface RoomInfo {
   status: RoomStatus;
   members: MemberInfo[];
   gameId: GameId;
+  /** Settings for the selected game (shape depends on gameId). */
+  settings: AnyGameSettings;
   startBlockedReason: string | null;
+  /** Set while status is 'results'. */
+  result: GameResult | null;
+}
+
+/** End-of-game summary: every role revealed. Public once the game is over. */
+export interface GameResult {
+  gameId: GameId;
+  endedBy: 'game' | 'host';
+  headline: string;
+  detail: string | null;
+  winners: PlayerId[];
+  roles: { playerId: PlayerId; name: string; role: string; team: 'good' | 'evil' }[];
+  reveals: { label: string; value: string }[];
+  scores: { playerId: PlayerId; points: number }[];
 }
 
 export type SessionEndReason = 'kicked' | 'closed' | 'expired' | 'replaced';

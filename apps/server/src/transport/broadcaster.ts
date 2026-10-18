@@ -1,17 +1,19 @@
-import type { SessionEndReason } from '@party/shared';
+import type { PlayerId, SessionEndReason } from '@party/shared';
 import type { Room } from '../rooms/room';
 import type { SocketRegistry } from './registry';
 import type { AppSocket } from './types';
 
 /**
  * The ONLY module allowed to emit to sockets (lint-enforced). Every message goes to one
- * member's own socket; nothing is ever emitted to a Socket.IO room.
+ * member's own socket; nothing is ever emitted to a Socket.IO room. Game views are
+ * computed per player and only ever sent to that player's socket.
  *
- * Room updates are coalesced per microtask, so several changes in one handler (and the
- * ack for it) go out before a single room:state.
+ * Updates are coalesced per microtask, so several changes in one handler (and the ack
+ * for it) go out before a single room:state / game:view.
  */
 export class Broadcaster {
   private readonly pendingRooms = new Set<Room>();
+  private readonly pendingGames = new Set<Room>();
   private readonly pendingDirect = new Map<AppSocket, Room>();
   private scheduled = false;
 
@@ -23,7 +25,13 @@ export class Broadcaster {
     this.schedule();
   }
 
-  /** Send room:state to one socket (after join/resume), even if nothing changed. */
+  /** Send each playing member their own game view. */
+  gameChanged(room: Room): void {
+    this.pendingGames.add(room);
+    this.schedule();
+  }
+
+  /** Send room:state (and game:view, if playing) to one socket after join/resume. */
   roomStateTo(socket: AppSocket, room: Room): void {
     this.pendingDirect.set(socket, room);
     this.schedule();
@@ -34,6 +42,10 @@ export class Broadcaster {
     socket.emit('session:ended', { reason });
   }
 
+  sessionUpdated(socket: AppSocket, playerId: PlayerId): void {
+    socket.emit('session:updated', { playerId });
+  }
+
   private schedule(): void {
     if (this.scheduled) return;
     this.scheduled = true;
@@ -42,6 +54,7 @@ export class Broadcaster {
 
   private flush(): void {
     this.scheduled = false;
+
     const sent = new Set<AppSocket>();
     for (const room of this.pendingRooms) {
       if (room.isClosed) continue;
@@ -57,7 +70,31 @@ export class Broadcaster {
       if (sent.has(socket) || room.isClosed || socket.data.code !== room.code) continue;
       socket.emit('room:state', room.info());
     }
+
+    const viewed = new Set<AppSocket>();
+    for (const room of this.pendingGames) {
+      if (room.isClosed) continue;
+      for (const member of room.info().members) {
+        const socket = this.registry.get(room.code, member.id);
+        if (socket) this.sendView(socket, room, member.id, viewed);
+      }
+    }
+    for (const [socket, room] of this.pendingDirect) {
+      const { code, playerId } = socket.data;
+      if (code === room.code && playerId !== undefined && !room.isClosed) {
+        this.sendView(socket, room, playerId, viewed);
+      }
+    }
+
     this.pendingRooms.clear();
+    this.pendingGames.clear();
     this.pendingDirect.clear();
+  }
+
+  private sendView(socket: AppSocket, room: Room, playerId: PlayerId, viewed: Set<AppSocket>): void {
+    if (viewed.has(socket)) return;
+    viewed.add(socket);
+    const payload = room.gameViewFor(playerId);
+    if (payload) socket.emit('game:view', payload);
   }
 }
