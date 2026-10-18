@@ -11,7 +11,7 @@ v1 games: **Imposter**, **Traitor**, **Pictionary**.
 **Goals (v1)**
 - Create a room → pick a game → share a link → friends join with a name → play. The first game starts in under a minute.
 - Works well on mobile browsers (portrait, one hand). Desktop is supported, not the priority.
-- Designed for **in-person play first** (office or a room of friends). The app replaces paper chits, timers, voting and scoring; discussion happens out loud.
+- Designed for **in-person play** (office or a room of friends). The app replaces paper chits, voting and scoring; discussion happens out loud, at the group's own pace.
 - Every player sees **only their own secret information**. This is enforced on the server.
 - Survives phone locks, refreshes and flaky Wi-Fi: a player rejoins their seat automatically.
 
@@ -40,7 +40,7 @@ v1 games: **Imposter**, **Traitor**, **Pictionary**.
 1. A friend opens `/r/<CODE>`, or enters the code on the landing page.
 2. They enter a display name. It's required, 1–16 characters, and unique within the room; if it's taken, they're asked to pick another.
 3. They land in the lobby and see the player list update live.
-4. Joining is blocked while a game is in progress. The player can wait in the lobby and is included in the next game.
+4. A player who joins while a game is in progress can't enter that game. They wait in the room ("You'll join the next game") and are included in the next game.
 
 ### 2.3 Lobby
 - Shows the selected game, its short rules, and its settings (host-editable, read-only for others).
@@ -48,52 +48,69 @@ v1 games: **Imposter**, **Traitor**, **Pictionary**.
 - The host can **kick** a player.
 - The host taps **Start** once the minimum player count for the selected game is met. Otherwise Start is disabled with a reason ("Need 2 more players").
 
-### 2.4 After a game
-- A results screen shows the winner, every role revealed, and scores where relevant.
-- The host can choose **Play again** (same game, same players), **Change game** (back to the lobby), or **Close room**.
+### 2.4 During a game (host controls)
+- The host drives the pace: they decide when discussion is over and tap **Start vote** (see §3).
+- The host can **End game** at any time (with a confirm dialog). The game stops immediately and goes to the results screen with every role revealed and no winner ("Ended by host").
 
-### 2.5 Room rules
+### 2.5 After a game
+- A results screen shows the winner (or "Ended by host"), every role revealed, and scores where relevant.
+- The host can choose **Play again** (same game, same settings, same players plus anyone who was waiting), **Change game** (back to the lobby), or **Close room**.
+
+### 2.6 Room rules
 - Max 15 players per room.
 - The host is the room creator. If the host disconnects for more than 60 seconds, host passes to the longest-connected player.
 - A room expires after 30 minutes with no connected players, or 3 hours total.
 - **Reconnection:** on join, the client gets a session token stored in localStorage. Reopening the link with that token restores the same player, seat and role, mid-game included.
+- **Lost token** (e.g. the link was opened in an in-app browser, then in Chrome): the player joins with a new name as a waiting player, and the host can tap an away player and choose **Give this seat to <new name>**. Seats can't be claimed by typing an old name.
 - A disconnected player stays in the game, shown as "away". Game rules for away players are defined per game below.
 
 ---
 
 ## 3. Games
 
-Each game is a sequence of **phases**. Every phase has a clear owner of the next action, and most have a timer. When a timer runs out, the phase advances with a sensible default, so the game never stalls waiting for one person.
+Each game is a sequence of **phases**. Because everyone is in the same room, **discussion and turns are untimed**: the group talks for as long as it likes. The only timers are where the app must collect secret input from everyone: **voting (60 seconds)**, the Imposter's last-chance guess, and a safety cap on the Traitor night.
+
+So the game never stalls, every untimed phase has a host control to move on (**Start vote**, **Next**, **Skip turn**, **End game**).
+
+### Shared: voting
+- The host taps **Start vote**. A **60-second** timer starts on every screen.
+- Each eligible player secretly taps one name (not their own) or **Skip**. They can change their vote until the vote closes.
+- The vote closes when every eligible player has voted, or when the timer runs out. No vote counts as a skip; away players count as skip.
+- While voting, everyone sees only "X of Y voted".
+- The player with the most votes is **evicted** and their role is revealed. A tie, or skip winning, means nobody is evicted.
+- **An evicted player is out for the rest of that game:** they can't vote, give clues, or act in any later round. They stay in the room as a spectator, and they play again normally in the next game.
 
 ### 3.1 Imposter
 
 **Players:** 3–12.
 
 **Setup**
-- The server picks a secret word from the selected **word pack** (e.g. General, Food, Movies, Places, Office). Packs are plain data files.
-- One random player is the **imposter**. Every other player is a **crewmate**.
-- Crewmates' screens show the word. The imposter's screen shows **"You are the IMPOSTER"** and the word pack's category name only (e.g. "Food"), no word.
-- Setting: number of imposters, default 1 (allow 2 when there are 8+ players).
+- Settings: **genres** (multi-select, at least one; see §5), **difficulty** (Easy / Medium / Hard / Mixed, default Medium), number of imposters (default 1; 2 allowed with 8+ players), max rounds (default 3).
+- The server picks one secret word from the selected genres and difficulty.
+- One random player (or two) is the **imposter**. Every other player is a **crewmate**.
+- Crewmates' screens show the word. The imposter's screen shows **"You are the IMPOSTER"** and the genre name of the word only (e.g. "Fruits"), no word. With 2 imposters, each also sees the other imposter's name.
 
 **Round loop**
-1. **Clue phase.** A random player order is shown. Going in order, each player says one word that relates to the secret word.
-   - In-person mode: the app just highlights whose turn it is. The current player taps **Done** (or the host taps Next). 20-second soft timer per player.
-   - Remote mode (chat on): each player types their one-word clue; clues appear in a shared list.
-2. **Discussion phase.** A 90-second timer (configurable from 30–300 seconds). The host can end it early.
-3. **Vote phase.** Each player secretly votes for who they think is the imposter. Players can't vote for themselves; skipping is allowed. 30-second timer; no vote counts as a skip.
+1. **Clue phase (untimed).** A random player order is shown. Going in order, each living player says one word that relates to the secret word.
+   - In-person mode: the app highlights whose turn it is. The current player taps **Done**, or the host taps **Next**.
+   - Remote mode (chat on): each player types their one-word clue; clues appear in a shared list. The host can tap **Next** to skip someone.
+2. **Discussion (untimed).** Everyone talks out loud. When the group is ready, the host taps **Start vote**.
+3. **Vote (60 seconds).** See *Shared: voting*.
 4. **Reveal.**
-   - The player with the most votes is voted out, and their role is revealed.
-   - A tie, or skip winning, means nobody is voted out, and play moves to the next round.
-   - If the imposter is voted out, they get one **last-chance guess**: they type the secret word (30 seconds). A correct guess (case-insensitive, trimmed) means the imposter wins. Otherwise crewmates win.
-   - If a crewmate is voted out, the game continues with the remaining players.
+   - The evicted player's role is revealed. A tie or skip means nobody is evicted, and the next round starts.
+   - If an imposter is evicted, they get one **last-chance guess**: they type the secret word (30 seconds). A correct guess (case-insensitive, trimmed) means the imposters win. Otherwise that imposter is out.
+   - If a crewmate is evicted, the game continues with the remaining players.
+   - The next round keeps the same word, with a new random clue order.
 
 **Win conditions**
-- Crewmates win: the imposter is voted out and fails the last-chance guess.
-- Imposter wins: they guess the word correctly, OR survive until only 2 players remain (themselves + 1), OR survive the configured max rounds (default 3).
+- Crewmates win: every imposter has been evicted and failed their last-chance guess.
+- Imposters win: any imposter guesses the word correctly, OR living imposters ≥ living crewmates, OR the imposters survive the max rounds.
 
 **Scoring (optional, per game)**
 - Crewmates win: each crewmate +1.
-- Imposter wins: imposter +3.
+- Imposters win: each imposter +3.
+
+**Away players:** their clue turn is skipped and their vote counts as skip. An away imposter at the last-chance guess fails when the 30 seconds run out.
 
 ### 3.2 Traitor
 
@@ -105,48 +122,48 @@ Each game is a sequence of **phases**. Every phase has a clear owner of the next
 - Traitors see their role **and the names of the other traitors**. Civilians see only "Civilian".
 
 **Round loop**
-1. **Night phase.** Everyone's screen goes dark ("Night — close your eyes" when in person).
-   - Traitors see a list of living civilians and each pick a target.
-   - The kill happens only when **all living traitors pick the same target** (unanimous). Traitors can see each other's current picks live, so they can converge.
-   - 60-second timer. If there's no unanimous choice when time runs out, **nobody is killed** this night.
-   - Civilians see a neutral waiting screen. It must look identical for everyone and stay up for the same duration, so nobody can tell who is a traitor by watching phones.
-2. **Morning.** The victim is announced (or "Nobody was killed"). The victim becomes a **spectator**: they can watch but not speak or vote. A setting controls whether the victim's role is revealed (default: no, since victims are always civilians).
-3. **Day discussion.** 120-second timer (configurable); the host can end it early.
-4. **Day vote.** Every living player votes to banish someone, or skips. 45-second timer.
-   - The most votes means that player is banished, and their role is revealed (default on, configurable).
-   - A tie, or skip winning, means nobody is banished.
+1. **Night.** Everyone's screen goes dark ("Night — close your eyes").
+   - Traitors see a list of living civilians. Each traitor picks a target and taps **Lock**. Traitors can see each other's current picks live, so they can converge.
+   - The night **ends as soon as every living traitor has locked the same target**, and that player is killed.
+   - Safety cap: if there's no unanimous lock after 60 seconds, the night ends with **nobody killed**.
+   - Civilians see a neutral waiting screen. It must look identical for every non-traitor, so nobody can tell who is a traitor by watching phones.
+2. **Morning.** The victim is announced (or "Nobody was killed"). The victim is evicted and becomes a spectator. A setting controls whether the victim's role is revealed (default: no, since victims are always civilians). The host taps **Continue**.
+3. **Day discussion (untimed).** Everyone talks. When ready, the host taps **Start vote**.
+4. **Day vote (60 seconds).** See *Shared: voting*. The evicted player's role is revealed (default on, configurable).
 5. Check the win conditions, then loop back to Night.
 
 **Win conditions** (checked after every night and every day vote)
-- **Civilians win:** all traitors are banished.
+- **Civilians win:** all traitors are evicted.
 - **Traitors win:** living traitors ≥ living civilians.
 
-**Away players:** a disconnected player's vote counts as skip. A disconnected traitor is excluded from the unanimity requirement after 15 seconds away, so the night isn't blocked.
+**Away players:** a disconnected player's vote counts as skip. A disconnected traitor is excluded from the unanimous lock after 15 seconds away, so the night isn't blocked.
 
 ### 3.3 Pictionary
 
 **Players:** 3–12.
 
-**Setup**
-- Settings: rounds (default 2; one round = every player draws once), draw time (default 80 seconds, range 30–180), word pack.
+**Settings**
+- **Genres** (multi-select, at least one; see §5), e.g. Bollywood Movies, Bollywood Songs, Fruits, Random Words.
+- **Difficulty:** Easy / Medium / Hard / Mixed (default Medium).
+- **Rounds:** default 2; one round = every player draws once.
 
-**Turn loop**
-1. **Word choice.** The drawer sees 3 random words from the pack and picks one (10 seconds; auto-picks the first one when time runs out). Nobody else sees the options.
-2. **Drawing phase.**
+**Turn loop** (no timers)
+1. **Word choice.** The drawer sees 3 random words from the selected genres and difficulty, each labelled with its genre, and picks one. Nobody else sees the options. The host can **Skip turn** if the drawer is stuck.
+2. **Drawing.**
    - The drawer gets a canvas: pen, 2–3 sizes, about 8 colours, eraser, undo, clear.
    - Strokes stream live to all other players' screens.
-   - Guessers see the canvas, plus a hint line of blanks (`_ _ _ _ _   _ _ _`). One random letter is revealed at 50% of the time and another at 75%.
+   - Guessers see the canvas, plus the genre and a hint line of blanks (`_ _ _ _ _   _ _ _`). The drawer can tap **Reveal a letter** (up to 2 per word).
    - Guessers type guesses. Matching is case-insensitive, ignores extra spaces, and accepts a word with one character off as "close" (shown to that guesser only as "So close!").
    - A correct guess is **not** shown to others. Others see only "<Name> guessed it!". After guessing correctly, a player can no longer guess and sees the word.
-   - In-person mode: guessers can also shout answers. The drawer can then tap a player's name to award them the guess manually.
-3. **Turn end.** This happens when everyone has guessed or the timer runs out. The word is revealed to all, and the turn's scores are shown.
+   - In-person: guessers can also shout answers. The drawer taps a player's name to award them the guess.
+3. **Turn end.** This happens when every guesser has guessed, or the drawer or host taps **End turn**. The word is revealed to all, and the turn's scores are shown. The host taps **Next turn**.
 
 **Scoring**
-- Guesser: points based on speed, from 100 at the start down to 20 at the end, decreasing linearly.
+- Guesser: +100 for a correct guess.
 - Drawer: +25 for each player who guessed correctly.
 - The final leaderboard comes after the last round.
 
-**Away players:** a disconnected drawer's turn is skipped. Away guessers simply don't score.
+**Away players:** a disconnected drawer's turn is skipped. Away guessers don't count towards "everyone has guessed" and don't score.
 
 ---
 
@@ -157,9 +174,9 @@ The server must never send a player data they shouldn't see. Each game produces 
 | Data | Who receives it |
 | --- | --- |
 | Imposter: the secret word | Crewmates only (and everyone at the reveal) |
-| Imposter: who the imposter is | Nobody until the reveal |
+| Imposter: who the imposters are | The imposters (each other) only, until revealed |
 | Traitor: each player's role | That player only; traitors also get the other traitors' names |
-| Traitor: night picks | Living traitors only |
+| Traitor: night picks and locks | Living traitors only |
 | Votes in progress | Nobody (only "X of Y voted"); the final tally is shown at the reveal |
 | Pictionary: word options | Drawer only |
 | Pictionary: chosen word | Drawer, plus each guesser after they guess correctly |
@@ -171,15 +188,19 @@ Client-side hiding is never acceptable. If it's in the network payload, it count
 
 ## 5. Content
 
-- Word packs live in `packages/shared` (or a `content/` folder) as JSON: `{ id, name, category, words[] }`.
-- v1 ships with 5 packs of 100+ words each: General, Food, Places, Movies & TV, Office.
+- Word lists are organised by **genre**. Each genre is a JSON file: `{ id, name, words: [{ text, difficulty: 'easy' | 'medium' | 'hard' }] }`.
+- Both Imposter and Pictionary use the same genres, difficulty setting and genre picker.
+- v1 genres: Bollywood Movies, Hollywood Movies, Bollywood Songs, Fruits & Vegetables, Animals, Food, Places, Objects, Office, Random Words.
+- Each genre ships with 100+ words and at least 30 words per difficulty level. "Mixed" draws from all levels.
 - All words are family-friendly by default.
+- Word lists stay on the server; they are never sent to clients.
 
 ---
 
 ## 6. Non-functional requirements
 
 - **Mobile-first:** usable at 360px width, large tap targets (44px+), no horizontal scroll.
+- **Light / dark theme:** a toggle on every screen. On a first visit it follows the device's system setting; once a player picks, their choice is remembered on that device.
 - **Latency:** game actions reflect on other screens in under 300ms on a normal connection. Pictionary strokes should feel live (batch points every ~50ms).
 - **Robustness:** the server validates every action: is it this player's turn, is the phase correct, is the target valid. Invalid actions are rejected with an error and never crash the room.
 - **Timers are server-side.** Clients only display the countdown from a server-provided deadline.
@@ -188,9 +209,18 @@ Client-side hiding is never acceptable. If it's in the network payload, it count
 
 ---
 
-## 7. Open questions (decide before or during M2)
+## 7. Decisions log
 
-1. Primarily in-person or remote? *Default assumption: in-person first, chat as an optional toggle.*
-2. Imposter: should the imposter see the category, or nothing at all? *Default: the category.*
-3. Traitor: reveal the role on banishment? *Default: yes.*
-4. Do we need custom word lists entered by the host? *Default: not in v1.*
+| Date | Decision |
+| --- | --- |
+| 2026-10-18 | In-person first; chat is an optional toggle. The imposter sees the genre. Roles are revealed on eviction by vote. No custom word lists in v1. |
+| 2026-10-18 | 2 imposters: an evicted imposter who fails the guess is out and the game continues. |
+| 2026-10-18 | Lost session token: the host reassigns the seat. No reclaiming by name. |
+| 2026-10-18 | Joining mid-game: the player waits and joins the next game. |
+| 2026-10-18 | **No discussion or turn timers.** The host taps Start vote, then a 60s vote timer runs. The Imposter clue phase is untimed. |
+| 2026-10-18 | Evicted players can't vote or act for the rest of that game. |
+| 2026-10-18 | The host can End game at any time, which goes to the results screen. |
+| 2026-10-18 | Traitor night ends as soon as all traitors lock the same target (60s safety cap, then no kill). |
+| 2026-10-18 | Pictionary is untimed: the turn ends when everyone has guessed or on End turn. Flat scoring (+100 guesser, +25 drawer per guess), and the drawer reveals hint letters. |
+| 2026-10-18 | Genres + difficulty (Easy/Medium/Hard/Mixed) are shared by Imposter and Pictionary. |
+| 2026-10-18 | Light/dark theme toggle on every screen; defaults to the system setting. |
