@@ -19,6 +19,7 @@ export interface SocketLayer {
 export interface SocketLayerOptions {
   allowedOrigin?: string;
   roomCreatesPerMinute?: number;
+  trustProxy: number;
   controls: ServerControls;
   bank: WordBank;
   rng?: () => Rng;
@@ -58,7 +59,10 @@ export function createSocketLayer(httpServer: HttpServer, options: SocketLayerOp
     { bank: options.bank, rng: options.rng },
   );
 
-  const gateway = createGateway(manager, registry, broadcaster, options.controls, options.roomCreatesPerMinute);
+  const gateway = createGateway(manager, registry, broadcaster, options.controls, {
+    roomCreatesPerMinute: options.roomCreatesPerMinute,
+    trustProxy: options.trustProxy,
+  });
   attachGateway(io, gateway);
   options.controls.onChange((status) => broadcaster.serverStatus(io.sockets.sockets.values(), status));
 

@@ -13,6 +13,7 @@ const app = await startApp({
   allowedOrigin: config.allowedOrigin,
   admin: config.admin,
   production: config.production,
+  trustProxy: config.trustProxy,
 });
 log.info('server listening', { port: app.port, production: config.production, admin: config.admin !== undefined });
 if (config.admin && config.production && config.admin.password.length < 12) {

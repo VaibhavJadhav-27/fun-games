@@ -8,6 +8,7 @@ import {
   isRoomCode,
   type AdminOverview,
 } from '@party/shared';
+import { clientIp } from '../clientIp';
 import { log } from '../log';
 import type { RoomManager } from '../rooms/roomManager';
 import { KeyedRateLimiter } from '../transport/rateLimit';
@@ -30,6 +31,8 @@ export interface AdminDeps {
   /** Adds `Secure` to the cookie. */
   secureCookie: boolean;
   loginsPerMinute?: number;
+  /** Proxies in front of the server (see clientIp). */
+  trustProxy?: number;
 }
 
 type Reply = { status: number; body: unknown; headers?: Record<string, string> };
@@ -74,7 +77,7 @@ export function createAdminHandler(deps: AdminDeps): AdminHandler {
 
     if (path === '/login' && method === 'POST') {
       loginLimiter.prune();
-      if (!loginLimiter.take(req.socket.remoteAddress ?? 'unknown')) {
+      if (!loginLimiter.take(clientIp(req.socket.remoteAddress, req.headers['x-forwarded-for'], deps.trustProxy ?? 0))) {
         return { status: 429, body: { error: 'Too many attempts. Wait a minute and try again.' } };
       }
       const body = await readJson(req, adminLoginSchema);
