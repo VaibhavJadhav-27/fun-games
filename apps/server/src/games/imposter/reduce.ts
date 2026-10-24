@@ -13,9 +13,12 @@ import { isCorrectGuess, pickWords } from '../../engine/words';
 import { alivePlayers, isImposter, playerName, type ImposterState } from './state';
 
 export function setup(input: SetupInput<ImposterSettings>, ctx: GameContext): ImposterState {
-  const { players, settings } = input;
-  const [picked] = pickWords(ctx.bank, settings.genres, settings.difficulty, 1, ctx.rng);
-  if (!picked) throw new Error('No word available');
+  const { players, settings, moderator } = input;
+  const picked =
+    settings.source === 'custom'
+      ? { text: settings.customWord, genreId: null }
+      : pickWords(ctx.bank, settings.genres, settings.difficulty, 1, ctx.rng)[0];
+  if (!picked?.text) throw new Error('No word available');
   const imposterIds = shuffle(
     players.map((p) => p.id),
     ctx.rng,
@@ -28,6 +31,7 @@ export function setup(input: SetupInput<ImposterSettings>, ctx: GameContext): Im
     online: Object.fromEntries(players.map((p) => [p.id, p.online])),
     word: picked.text,
     genreId: picked.genreId,
+    moderatorId: moderator,
     imposterIds,
     evicted: [],
     round: 1,

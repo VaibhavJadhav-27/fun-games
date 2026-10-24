@@ -215,6 +215,7 @@ interface BaseState { phase: Phase<string>; }
 interface SetupInput<Cfg> {
   players: { id: PlayerId; name: string; online: boolean }[];  // seat order
   settings: Cfg;
+  moderator: PlayerId | null;  // the host, when settings.hostModerates(cfg); never in `players`
   chatEnabled: boolean;        // optional remote-play chat (M5)
 }
 
@@ -240,6 +241,10 @@ interface GameDefinition<S extends BaseState, A, V extends BaseView, Cfg, N> {
     defaults(playerCount: number): Cfg;
     clamp(cfg: Cfg, playerCount: number): Cfg;              // after member-count changes
     validate(cfg: Cfg, playerCount: number): string | null; // human-readable reason
+    update?(prev: Cfg, raw: unknown): Result<Cfg>;          // host change merged with current (keeps secrets)
+    toPublic?(cfg: Cfg): PublicCfg;                         // what RoomInfo carries (secrets stripped)
+    hostModerates?(cfg: Cfg): boolean;                      // host runs the game, isn't a player
+    forgetSecrets?(cfg: Cfg): Cfg;                          // after a game, or when the host changes
   };
   actionSchema: ZodType<A>;      // zod for game:action payloads (shared package)
   viewSchema: ZodType<V>;        // strict union of every role's view (shared package)
@@ -426,7 +431,8 @@ Behaviour follows SPEC §3 and the SPEC decisions log. Phases marked ⏱ have a 
 - **Discussion:** no app turns; the group goes round robin out loud. `[host] startVote` opens the shared vote (§6.1).
 - **Vote:** `vote(targetId | 'skip')` from any eligible player, changeable until the vote closes. Every vote change rebroadcasts views, so live counts update on every screen.
 - **Result:** the final counts, ballots, and the outcome (`imposterCaught` / `innocentEvicted` / `nobody`) with the evicted player's role. If an imposter was caught, the next phase is `lastGuess`. Otherwise `[host] continue` checks the win conditions and starts the next round with the same word.
-- **Views:** a crewmate gets `word` and `genre`. An imposter gets `genre` and `role: 'imposter'`, plus `fellowImposters` when there are 2 imposters. Everyone gets the public player list (with evicted marks), live vote counts during the vote, and revealed evictions with their roles.
+- **Custom word:** settings carry a secret `customWord`. `toPublic` swaps it for `customWordSet`, `update` keeps it when the host omits it, and `hostModerates` makes the host a moderator: excluded from `players`, the player count and the vote, with a `role: 'moderator'` view (word + genre, no roles). `forgetSecrets` clears it after the game and on host change.
+- **Views:** a crewmate gets `word` and `genre` (null for a custom word). An imposter gets `role: 'imposter'` and `genre` only on Easy (otherwise null), plus `fellowImposters` when there are 2 imposters. Everyone gets the public player list (with evicted marks), live vote counts during the vote, and revealed evictions with their roles.
 - **Away:** an away player's vote counts as skip. An away imposter at `lastGuess` fails when the deadline passes.
 
 ### 11.2 Traitor
@@ -470,6 +476,14 @@ Behaviour follows SPEC §3 and the SPEC decisions log. Phases marked ⏱ have a 
 - **Privacy:** only display names are stored, in memory, for the room's lifetime. There's no analytics, and logs contain no names or tokens.
 
 ---
+
+## 13a. Admin dashboard
+
+- **Route:** the SPA serves `/admin` (lazy-loaded, linked from nowhere). Its API is plain HTTP under `/admin/api/*`, handled by `apps/server/src/admin/http.ts` before static files. It's switched off (404) unless `ADMIN_USERNAME` and `ADMIN_PASSWORD` are set. Locally they come from `apps/server/.env` (git-ignored; see `.env.example`).
+- **Auth:** credentials are compared in constant time (SHA-256, then `timingSafeEqual`). Logins are limited to 5 per minute per IP. A session is a random token in an `HttpOnly; SameSite=Strict; Path=/admin/api` cookie (`Secure` in production), stored hashed in memory for 8 hours. Every request except GET must carry `x-party-admin: 1` (CSRF guard).
+- **Data:** `Room.adminSummary()` returns public room fields only (code, game, status, member names/presence/seat, timestamps). It never reads game state, so words and roles can't reach the dashboard. `UsageStats` (in `rooms/`) counts rooms, games and peaks in memory.
+- **Live updates (push a ping, then fetch):** `GET /admin/api/events` is a Server-Sent Events stream (`admin/events.ts`). `RoomManager.onChange` (any room's public info changed, created or closed) and `ServerControls.onChange` trigger an `event: changed` ping. Pings carry **no data** and are coalesced to at most one per 300ms. The dashboard answers each ping by fetching `/overview`, the same full snapshot as before, so the push can't drift or leak anything. A 25s heartbeat keeps proxies from closing the stream and re-checks the session (`event: logout` once it's invalid). There are at most 10 streams. The dashboard also polls every 30s as a backstop.
+- **Controls:** `ServerControls` holds maintenance mode and the announcement. Changes go out as `server:status` to every socket through the Broadcaster, which also sends it on connect. In maintenance mode, `room:create` fails with `MAINTENANCE`.
 
 ## 14. Testing strategy
 

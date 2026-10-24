@@ -9,6 +9,8 @@ import type { ImposterState } from './state';
 /** Test harness: a fake clock and a seeded rng around the pure Imposter reducer. */
 export const BANK = loadWordBank();
 
+export const MODERATOR = 'mod';
+
 export function playerIds(n: number): string[] {
   return Array.from({ length: n }, (_, i) => `p${i + 1}`);
 }
@@ -22,12 +24,16 @@ export class ImposterHarness {
   constructor(n: number, settings: Partial<ImposterSettings> = {}, seed = 1) {
     this.rng = seededRng(seed);
     const ids = playerIds(n);
-    this.host = ids[0] as string;
+    const cfg = { ...imposterDefaultSettings(), ...settings };
+    // A custom word means the host moderates: they aren't one of the n players.
+    const moderator = imposter.settings.hostModerates?.(cfg) ? MODERATOR : null;
+    this.host = moderator ?? (ids[0] as string);
     this.state = deepFreeze(
       imposter.setup(
         {
           players: ids.map((id) => ({ id, name: `Player ${id.slice(1)}`, online: true })),
-          settings: { ...imposterDefaultSettings(), ...settings },
+          settings: cfg,
+          moderator,
         },
         this.ctx(),
       ),

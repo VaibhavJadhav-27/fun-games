@@ -5,9 +5,11 @@ import {
   imposterActionSchema,
   imposterDefaultSettings,
   imposterSettingsSchema,
+  imposterSettingsUpdateSchema,
   imposterViewSchema,
   type GameResult,
   type ImposterAction,
+  type ImposterPublicSettings,
   type ImposterSettings,
   type ImposterView,
 } from '@party/shared';
@@ -29,11 +31,28 @@ export const imposter: GameDefinition<ImposterState, ImposterAction, ImposterVie
       return cfg.imposters === 2 && playerCount < IMPOSTER_TWO_IMPOSTERS_MIN_PLAYERS ? { ...cfg, imposters: 1 } : cfg;
     },
     validate(cfg, playerCount) {
+      if (cfg.source === 'custom' && !cfg.customWord) return 'Enter the custom word';
       if (cfg.imposters === 2 && playerCount < IMPOSTER_TWO_IMPOSTERS_MIN_PLAYERS) {
         return `2 imposters need at least ${IMPOSTER_TWO_IMPOSTERS_MIN_PLAYERS} players`;
       }
       return null;
     },
+    update(prev, raw) {
+      const parsed = imposterSettingsUpdateSchema.safeParse(raw);
+      if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? 'Invalid settings' };
+      const { customWord, ...rest } = parsed.data;
+      return { ok: true, value: { ...rest, customWord: customWord === undefined ? prev.customWord : customWord } };
+    },
+    toPublic: (cfg): ImposterPublicSettings => ({
+      source: cfg.source,
+      genres: [...cfg.genres],
+      difficulty: cfg.difficulty,
+      imposters: cfg.imposters,
+      maxRounds: cfg.maxRounds,
+      customWordSet: cfg.customWord !== null,
+    }),
+    hostModerates: (cfg) => cfg.source === 'custom',
+    forgetSecrets: (cfg) => (cfg.customWord === null ? cfg : { ...cfg, customWord: null }),
   },
   actionSchema: imposterActionSchema,
   viewSchema: imposterViewSchema,
@@ -53,7 +72,7 @@ function summarize(state: ImposterState, endedBy: 'game' | 'host'): GameResult {
   });
   const reveals = [
     { label: 'Word', value: state.word },
-    { label: 'Genre', value: genreName(state.genreId) },
+    { label: 'Genre', value: state.genreId ? genreName(state.genreId) : 'Custom word' },
   ];
 
   if (endedBy === 'host' || !state.outcome) {

@@ -42,6 +42,8 @@ export function startSocket(): void {
     useStore.setState({ view, viewRev: rev });
   });
 
+  socket.on('server:status', (server) => useStore.setState({ server }));
+
   socket.on('session:updated', ({ playerId }) => {
     const { room } = useStore.getState();
     if (room) updateSessionPlayer(room.code, playerId);

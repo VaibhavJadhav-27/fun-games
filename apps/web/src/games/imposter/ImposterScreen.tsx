@@ -19,9 +19,15 @@ export function ImposterScreen({ view, isHost }: { view: ImposterView; isHost: b
         Round {view.round} of {view.maxRounds}
       </p>
 
-      {view.you.evicted && (
+      {view.you.role !== 'moderator' && view.you.evicted && (
         <p className="rounded-2xl bg-panel-2 px-4 py-3 text-center text-sm text-muted">
           You've been evicted. You're watching until the game ends, so no hints out loud!
+        </p>
+      )}
+
+      {view.you.role === 'moderator' && (
+        <p className="rounded-2xl bg-panel-2 px-4 py-3 text-center text-sm text-muted">
+          You're the moderator: you chose the word, so you run the game but don't vote. Keep a straight face!
         </p>
       )}
 
@@ -31,7 +37,13 @@ export function ImposterScreen({ view, isHost }: { view: ImposterView; isHost: b
             <span className="text-sm font-semibold tracking-widest text-bad uppercase">You are the</span>
             <span className="text-4xl font-black text-bad">IMPOSTER</span>
             <span className="text-muted">
-              Genre: <span className="font-semibold text-fg">{view.genre}</span>
+              {view.genre ? (
+                <>
+                  Genre: <span className="font-semibold text-fg">{view.genre}</span>
+                </>
+              ) : (
+                'No hint this time. Listen closely and blend in.'
+              )}
             </span>
             {view.fellowImposters.length > 0 && (
               <span className="text-sm text-muted">
@@ -41,7 +53,10 @@ export function ImposterScreen({ view, isHost }: { view: ImposterView; isHost: b
           </>
         ) : (
           <>
-            <span className="text-sm font-semibold tracking-widest text-good uppercase">Crewmate · {view.genre}</span>
+            <span className="text-sm font-semibold tracking-widest text-good uppercase">
+              {view.you.role === 'moderator' ? 'Moderator' : 'Crewmate'}
+              {view.genre ? ` · ${view.genre}` : ''}
+            </span>
             <span className="text-4xl leading-tight font-black break-words">{view.word}</span>
           </>
         )}

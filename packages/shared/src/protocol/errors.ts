@@ -17,6 +17,7 @@ export const ERROR_CODES = [
   'GAME_UNAVAILABLE',
   'INTERNAL',
   'TIMEOUT',
+  'MAINTENANCE',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -44,4 +45,5 @@ export const DEFAULT_ERROR_MESSAGES: Record<ErrorCode, string> = {
   GAME_UNAVAILABLE: 'This game is not available yet.',
   INTERNAL: 'Something went wrong. Please try again.',
   TIMEOUT: 'The server did not respond. Check your connection.',
+  MAINTENANCE: "We're doing some maintenance, so new rooms are paused. Try again soon.",
 };

@@ -29,9 +29,11 @@ export interface SetupPlayer {
 }
 
 export interface SetupInput<Cfg> {
-  /** Players in seat order. */
+  /** Players in seat order. Never includes the moderator. */
   players: SetupPlayer[];
   settings: Cfg;
+  /** The host, when `settings.hostModerates` says they run the game instead of playing it. */
+  moderator: PlayerId | null;
 }
 
 export type GameInput<A> =
@@ -59,6 +61,14 @@ export interface GameDefinition<S extends BaseState, A, V, Cfg> {
     clamp(cfg: Cfg, playerCount: number): Cfg;
     /** Human-readable reason the settings can't be used with this many players. */
     validate(cfg: Cfg, playerCount: number): string | null;
+    /** Parse a host's change against the current settings. Default: `schema` replaces them. */
+    update?(prev: Cfg, raw: unknown): { ok: true; value: Cfg } | { ok: false; message: string };
+    /** What everyone in the room sees (RoomInfo). Default: the settings as they are. */
+    toPublic?(cfg: Cfg): unknown;
+    /** True when the host runs the game instead of playing it (and isn't counted as a player). */
+    hostModerates?(cfg: Cfg): boolean;
+    /** Drop secrets the host entered, once a game has used them or the host changes. */
+    forgetSecrets?(cfg: Cfg): Cfg;
   };
   actionSchema: ZodType<A>;
   /** Strict schema every outgoing view must pass (fails closed). */

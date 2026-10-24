@@ -180,7 +180,7 @@ describe('rooms over sockets', () => {
     await until(() => host.room()?.members.length === 2);
     for (const c of [host, ravi]) {
       for (const frame of c.frames) {
-        expect(['room:state', 'session:ended', 'game:view', 'session:updated']).toContain(frame.event);
+        expect(['room:state', 'session:ended', 'game:view', 'session:updated', 'server:status']).toContain(frame.event);
         const raw = JSON.stringify(frame.payload);
         expect(raw).not.toContain(grant.sessionToken);
         expect(raw).not.toContain(raviGrant.sessionToken);
@@ -198,7 +198,7 @@ describe('rooms over sockets', () => {
     }
     await until(() => host.room()?.members.length === 4);
     await host.call('lobby:setSettings', {
-      settings: { genres: ['fruits-vegetables'], difficulty: 'easy', imposters: 1, maxRounds: 3 },
+      settings: { source: 'genres', genres: ['fruits-vegetables'], difficulty: 'easy', imposters: 1, maxRounds: 3 },
     });
     await host.call('game:start', {});
     await until(() => players.every((p) => p.view() !== null));
@@ -273,6 +273,37 @@ describe('rooms over sockets', () => {
     // Host plays again: a fresh game starts for the same players.
     await host.call('results:playAgain', {});
     await until(() => players.every((p) => p.room()?.status === 'playing' && p.view()?.phase === 'discussion'));
+  });
+
+  it("never sends the host's custom word to anyone else", async () => {
+    const names = ['Asha', 'Ravi', 'Meera', 'Kiran'];
+    const players = names.map(() => client());
+    const [host, ...others] = players as [ReturnType<typeof client>, ...ReturnType<typeof client>[]];
+    const { code } = await host.call('room:create', { name: names[0] as string, gameId: 'imposter' });
+    for (const [i, p] of others.entries()) await p.call('room:join', { code, name: names[i + 1] as string });
+    await until(() => host.room()?.members.length === 4);
+    await host.call('lobby:setSettings', {
+      settings: { source: 'custom', genres: ['animals'], difficulty: 'medium', imposters: 1, maxRounds: 3, customWord: 'Zebracorn' },
+    });
+    await host.call('game:start', {});
+    await until(() => players.every((p) => p.view() !== null));
+    expect(host.view()?.you.role).toBe('moderator');
+    const imposter = others.find((p) => p.view()?.you.role === 'imposter');
+    expect(imposter).toBeDefined();
+    await host.call('game:end', {});
+    await until(() => players.every((p) => p.room()?.status === 'results'));
+
+    // RoomInfo never carried it; only crewmates' own views did, until the reveal.
+    for (const p of players) {
+      for (const f of p.frames) {
+        if (f.event === 'room:state' && (f.payload as RoomInfo).status !== 'results') {
+          expect(JSON.stringify(f.payload)).not.toContain('Zebracorn');
+        }
+      }
+    }
+    for (const f of imposter?.frames ?? []) {
+      if (f.event === 'game:view') expect(JSON.stringify(f.payload)).not.toContain('Zebracorn');
+    }
   });
 
   it('rejects malformed payloads without crashing', async () => {

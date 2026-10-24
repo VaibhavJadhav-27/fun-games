@@ -1,4 +1,4 @@
-import type { PlayerId, SessionEndReason } from '@party/shared';
+import type { PlayerId, ServerStatus, SessionEndReason } from '@party/shared';
 import type { Room } from '../rooms/room';
 import type { SocketRegistry } from './registry';
 import type { AppSocket } from './types';
@@ -44,6 +44,11 @@ export class Broadcaster {
 
   sessionUpdated(socket: AppSocket, playerId: PlayerId): void {
     socket.emit('session:updated', { playerId });
+  }
+
+  /** Server-wide status (maintenance, announcement). Public; contains no room data. */
+  serverStatus(sockets: Iterable<AppSocket>, status: ServerStatus): void {
+    for (const socket of sockets) socket.emit('server:status', status);
   }
 
   private schedule(): void {

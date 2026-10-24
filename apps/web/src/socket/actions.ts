@@ -2,7 +2,7 @@ import {
   DEFAULT_ERROR_MESSAGES,
   type Ack,
   type AckData,
-  type AnyGameSettings,
+  type AnyGameSettingsUpdate,
   type ClientEventName,
   type ImposterAction,
   type ClientPayload,
@@ -79,7 +79,7 @@ export async function leaveRoom(code: string) {
 
 export const closeRoom = () => request('room:close', {});
 export const setGame = (gameId: GameId) => request('lobby:setGame', { gameId });
-export const setSettings = (settings: AnyGameSettings) => request('lobby:setSettings', { settings });
+export const setSettings = (settings: AnyGameSettingsUpdate) => request('lobby:setSettings', { settings });
 export const kickPlayer = (playerId: PlayerId) => request('lobby:kick', { playerId });
 export const startGame = () => request('game:start', {});
 export const endGame = () => request('game:end', {});

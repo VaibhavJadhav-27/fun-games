@@ -3,6 +3,7 @@ import type { WordBank } from '@party/content';
 import {
   GAME_IDS,
   MAX_MEMBERS,
+  type AdminRoom,
   startBlockedReason,
   type AnyGameSettings,
   type GameId,
@@ -23,6 +24,7 @@ import { errorFields, log } from '../log';
 import { gameFor } from '../games/registry';
 import { err, ok, type Result } from './result';
 import { hashSessionToken, newSessionToken } from './sessions';
+import type { UsageStats } from './stats';
 
 export const PRESENCE_GRACE_MS = 5_000;
 export const HOST_AWAY_TRANSFER_MS = 60_000;
@@ -57,6 +59,7 @@ export interface RoomDeps {
   bank: WordBank;
   /** A fresh rng per game. Seeded in tests. */
   rng?: () => Rng;
+  stats?: UsageStats;
 }
 
 /**
@@ -78,6 +81,8 @@ export class Room {
   private readonly graceTimers = new Map<PlayerId, ReturnType<typeof setTimeout>>();
   private hostTimer: ReturnType<typeof setTimeout> | null = null;
   private emptySince: number | null = null;
+  private lastActiveAt = Date.now();
+  private gameStartedAt = 0;
   private closed = false;
   private joinSeq = 0;
 
@@ -205,6 +210,37 @@ export class Room {
     this.end('expired');
   }
 
+  /** The admin closed the room: everyone sees "Room closed". */
+  adminClose(): void {
+    this.end('closed');
+  }
+
+  /** No member is connected; the room will expire unless someone comes back. */
+  get isStale(): boolean {
+    return this.emptySince !== null;
+  }
+
+  onlineCount(): number {
+    return this.activeMembers().filter((m) => m.presence === 'online').length;
+  }
+
+  /** For the admin dashboard: public room information only, never game state. */
+  adminSummary(): AdminRoom {
+    const maxAge = this.createdAt + ROOM_MAX_AGE_MS;
+    return {
+      code: this.code,
+      gameId: this.gameId,
+      status: this.status,
+      members: [...this.members.values()]
+        .sort((a, b) => a.joinOrder - b.joinOrder)
+        .map((m) => ({ name: m.name, isHost: m.id === this.hostId, presence: m.presence, seat: m.seat })),
+      createdAt: this.createdAt,
+      lastActiveAt: this.lastActiveAt,
+      emptySince: this.emptySince,
+      expiresAt: this.emptySince === null ? maxAge : Math.min(maxAge, this.emptySince + EMPTY_ROOM_TTL_MS),
+    };
+  }
+
   // ── Presence ──────────────────────────────────────────────────────────────
 
   /** A socket is now bound to this player. */
@@ -264,9 +300,18 @@ export class Room {
     if (this.status !== 'lobby') return err('WRONG_STATUS');
     const def = gameFor(this.gameId);
     if (!def) return err('GAME_UNAVAILABLE');
-    const parsed = def.settings.schema.safeParse(raw);
-    if (!parsed.success) return err('INVALID_SETTINGS', parsed.error.issues[0]?.message);
-    this.settings.set(this.gameId, def.settings.clamp(parsed.data, this.activeMembers().length));
+    const prev = this.settings.get(this.gameId);
+    let next: unknown;
+    if (def.settings.update) {
+      const updated = def.settings.update(prev, raw);
+      if (!updated.ok) return err('INVALID_SETTINGS', updated.message);
+      next = updated.value;
+    } else {
+      const parsed = def.settings.schema.safeParse(raw);
+      if (!parsed.success) return err('INVALID_SETTINGS', parsed.error.issues[0]?.message);
+      next = parsed.data;
+    }
+    this.settings.set(this.gameId, def.settings.clamp(next, this.playerCount(next)));
     this.touch();
     return ok(null);
   }
@@ -340,7 +385,7 @@ export class Room {
       status: this.status,
       members,
       gameId: this.gameId,
-      settings: this.settings.get(this.gameId) as AnyGameSettings,
+      settings: this.publicSettings(),
       startBlockedReason: this.status === 'playing' ? null : this.blockedReason(),
       result: this.status === 'results' ? this.result : null,
     };
@@ -352,13 +397,41 @@ export class Room {
     return [...this.members.values()].filter((m) => m.presence !== 'left');
   }
 
+  /** Settings as everyone sees them: the game strips anything secret (e.g. a custom word). */
+  private publicSettings(): AnyGameSettings {
+    const cfg = this.settings.get(this.gameId);
+    const def = gameFor(this.gameId);
+    return (def?.settings.toPublic ? def.settings.toPublic(cfg) : cfg) as AnyGameSettings;
+  }
+
+  private hostModerates(cfg: unknown = this.settings.get(this.gameId)): boolean {
+    return gameFor(this.gameId)?.settings.hostModerates?.(cfg) ?? false;
+  }
+
+  /** How many members would play: everyone, minus the host when they moderate. */
+  private playerCount(cfg?: unknown): number {
+    return this.activeMembers().length - (this.hostModerates(cfg) ? 1 : 0);
+  }
+
   /** Why a game can't start: player count, availability, then the game's own settings rules. */
   private blockedReason(): string | null {
-    const count = this.activeMembers().length;
+    const count = this.playerCount();
     const reason = startBlockedReason(this.gameId, count);
     if (reason) return reason;
     const def = gameFor(this.gameId);
     return def ? def.settings.validate(this.settings.get(this.gameId), count) : null;
+  }
+
+  private forgetSecrets(): void {
+    const def = gameFor(this.gameId);
+    if (def?.settings.forgetSecrets) this.settings.set(this.gameId, def.settings.forgetSecrets(this.settings.get(this.gameId)));
+  }
+
+  /** The host knew any secret they typed in, so it can't outlive their time as host. */
+  private setHost(id: PlayerId): void {
+    if (id === this.hostId) return;
+    this.hostId = id;
+    this.forgetSecrets();
   }
 
   private launch(): Result<null> {
@@ -368,13 +441,15 @@ export class Room {
     if (!def) return err('GAME_UNAVAILABLE');
 
     this.resetSeats();
+    const moderator = this.hostModerates() ? this.hostId : null;
     const players = this.activeMembers()
+      .filter((m) => m.id !== moderator)
       .sort((a, b) => a.joinOrder - b.joinOrder)
       .map((m) => ({ id: m.id, name: m.name, online: m.presence === 'online' }));
     try {
       this.runner = new GameRunner(
         def,
-        { players, settings: this.settings.get(this.gameId) },
+        { players, settings: this.settings.get(this.gameId), moderator },
         {
           bank: this.deps.bank,
           rng: (this.deps.rng ?? cryptoRng)(),
@@ -388,6 +463,8 @@ export class Room {
     }
     this.status = 'playing';
     this.result = null;
+    this.gameStartedAt = Date.now();
+    this.deps.stats?.gameStarted(this.gameId);
     this.touch();
     this.hooks.gameChanged(this);
     return ok(null);
@@ -409,6 +486,7 @@ export class Room {
 
   private afterGameStep(): void {
     if (!this.runner || this.closed) return;
+    this.lastActiveAt = Date.now();
     const result = this.runner.result();
     if (result) this.finish(result);
     else this.hooks.gameChanged(this);
@@ -419,13 +497,15 @@ export class Room {
     this.runner = null;
     this.status = 'results';
     this.result = result;
+    this.deps.stats?.gameFinished(result, Date.now() - this.gameStartedAt);
+    this.forgetSecrets();
     this.touch();
   }
 
   private clampSettings(): void {
     const def = gameFor(this.gameId);
     if (!def || this.status !== 'lobby') return;
-    this.settings.set(this.gameId, def.settings.clamp(this.settings.get(this.gameId), this.activeMembers().length));
+    this.settings.set(this.gameId, def.settings.clamp(this.settings.get(this.gameId), this.playerCount()));
   }
 
   /** Lobby: the member is deleted. During a game or results: kept as 'left'. */
@@ -466,7 +546,7 @@ export class Room {
     if (!host || host.presence === 'left') {
       const next =
         this.earliest((m) => m.presence === 'online') ?? this.earliest((m) => m.presence !== 'left');
-      if (next) this.hostId = next.id;
+      if (next) this.setHost(next.id);
       this.clearHostTimer();
       return;
     }
@@ -474,7 +554,7 @@ export class Room {
     if (Date.now() >= due) {
       const next = this.earliest((m) => m.presence === 'online' && m.id !== host.id);
       if (next) {
-        this.hostId = next.id;
+        this.setHost(next.id);
         this.clearHostTimer();
       }
       // Nobody online to take over: re-checked when someone comes back.
@@ -530,6 +610,7 @@ export class Room {
 
   private touch(): void {
     if (this.closed) return;
+    this.lastActiveAt = Date.now();
     this.rev++;
     this.hooks.changed(this);
   }

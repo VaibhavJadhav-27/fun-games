@@ -53,3 +53,18 @@ input,
 button {
   font: inherit;
 }
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Admin: a room that just opened glows briefly. */
+@keyframes admin-arrive {
+  from {
+    background-color: color-mix(in srgb, var(--color-accent) 22%, var(--color-panel));
+  }
+  to {
+    background-color: var(--color-panel);
+  }
+}

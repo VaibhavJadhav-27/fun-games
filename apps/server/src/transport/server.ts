@@ -1,6 +1,7 @@
 import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import type { WordBank } from '@party/content';
+import type { ServerControls } from '../admin/controls';
 import type { Rng } from '../engine/rng';
 import { RoomManager } from '../rooms/roomManager';
 import { Broadcaster } from './broadcaster';
@@ -18,6 +19,7 @@ export interface SocketLayer {
 export interface SocketLayerOptions {
   allowedOrigin?: string;
   roomCreatesPerMinute?: number;
+  controls: ServerControls;
   bank: WordBank;
   rng?: () => Rng;
 }
@@ -56,8 +58,9 @@ export function createSocketLayer(httpServer: HttpServer, options: SocketLayerOp
     { bank: options.bank, rng: options.rng },
   );
 
-  const gateway = createGateway(manager, registry, broadcaster, options.roomCreatesPerMinute);
+  const gateway = createGateway(manager, registry, broadcaster, options.controls, options.roomCreatesPerMinute);
   attachGateway(io, gateway);
+  options.controls.onChange((status) => broadcaster.serverStatus(io.sockets.sockets.values(), status));
 
   return {
     io,

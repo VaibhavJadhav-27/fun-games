@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameView, PlayerId, RoomInfo, SessionEndReason } from '@party/shared';
+import type { GameView, PlayerId, RoomInfo, ServerStatus, SessionEndReason } from '@party/shared';
 
 export type Connection = 'connecting' | 'connected' | 'disconnected';
 
@@ -18,6 +18,10 @@ export interface StoreState {
   /** The socket the server has bound to our player; differs from socketId after a reconnect. */
   boundSocketId: string | null;
   ended: { code: string; reason: SessionEndReason } | null;
+  /** Maintenance mode and the admin's announcement. */
+  server: ServerStatus;
+  /** The announcement the player closed; a new one shows again. */
+  dismissedAnnouncement: number | null;
 }
 
 export const useStore = create<StoreState>()(() => ({
@@ -31,6 +35,8 @@ export const useStore = create<StoreState>()(() => ({
   playerId: null,
   boundSocketId: null,
   ended: null,
+  server: { maintenance: false, announcement: null },
+  dismissedAnnouncement: null,
 }));
 
 /** Server time now, corrected for clock skew. */

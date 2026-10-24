@@ -4,11 +4,12 @@ import { isEvicted, isImposter, type ImposterState } from './state';
 
 /**
  * Builds one player's view field by field (never spreads state). The imposter variant
- * has no `word`; crewmates never get `fellowImposters`; other players' roles appear only
+ * has no `word`; crewmates and the moderator never get `fellowImposters`; other players' roles appear only
  * once they've been evicted; votes in progress are counts only.
  */
 export function getPlayerView(state: ImposterState, viewer: PlayerId): ImposterView {
-  if (!state.players.some((p) => p.id === viewer)) throw new Error('Viewer is not in this game');
+  const moderator = viewer === state.moderatorId;
+  if (!moderator && !state.players.some((p) => p.id === viewer)) throw new Error('Viewer is not in this game');
 
   const base = {
     game: 'imposter' as const,
@@ -40,14 +41,18 @@ export function getPlayerView(state: ImposterState, viewer: PlayerId): ImposterV
       ? { by: state.lastGuess.by, status: state.lastGuess.status, text: state.lastGuess.text }
       : null,
   };
-  const evicted = isEvicted(state, viewer);
-  const genre = genreName(state.genreId);
+  const genre = state.genreId ? genreName(state.genreId) : null;
 
+  if (moderator) {
+    return { ...base, you: { id: viewer, role: 'moderator' }, word: state.word, genre };
+  }
+  const evicted = isEvicted(state, viewer);
   if (isImposter(state, viewer)) {
     return {
       ...base,
       you: { id: viewer, role: 'imposter', evicted },
-      genre,
+      // The genre is the imposter's only hint, and only on Easy (SPEC §7, 2026-10-24).
+      genre: state.settings.difficulty === 'easy' ? genre : null,
       fellowImposters: state.imposterIds.filter((id) => id !== viewer),
     };
   }

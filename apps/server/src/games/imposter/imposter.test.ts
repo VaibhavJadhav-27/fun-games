@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { IMPOSTER_GUESS_MS, IMPOSTER_VOTE_MS } from '@party/shared';
 import { imposter } from './index';
-import { ImposterHarness } from './testing';
+import { ImposterHarness, MODERATOR } from './testing';
 
 describe('setup', () => {
   it('assigns the configured number of imposters and a word from the chosen genres', () => {
@@ -174,5 +174,53 @@ describe('settings', () => {
     expect(imposter.settings.validate(cfg, 7)).toMatch(/8/);
     expect(imposter.settings.validate(cfg, 8)).toBeNull();
     expect(imposter.settings.clamp(cfg, 5).imposters).toBe(1);
+  });
+});
+
+describe('hints', () => {
+  it('shows the imposter the genre on Easy only', () => {
+    for (const difficulty of ['easy', 'medium', 'hard', 'mixed'] as const) {
+      const h = new ImposterHarness(4, { genres: ['animals'], difficulty });
+      const view = imposter.getPlayerView(h.state, h.imposters[0] as string);
+      expect(view.genre).toBe(difficulty === 'easy' ? 'Animals' : null);
+      // Crewmates know the word anyway, so they always see its genre.
+      expect(imposter.getPlayerView(h.state, h.crew[0] as string).genre).toBe('Animals');
+    }
+  });
+});
+
+describe('custom word', () => {
+  const custom = { source: 'custom' as const, customWord: 'Mango', difficulty: 'easy' as const };
+
+  it("uses the host's word, gives no hint, and keeps the moderator out of the game", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const h = new ImposterHarness(3, custom, seed);
+      expect(h.state.word).toBe('Mango');
+      expect(h.state.players.map((p) => p.id)).not.toContain(MODERATOR);
+      expect(h.imposters).not.toContain(MODERATOR);
+      const impView = imposter.getPlayerView(h.state, h.imposters[0] as string);
+      expect(impView.genre).toBeNull();
+      expect(imposter.getPlayerView(h.state, MODERATOR)).toMatchObject({
+        you: { id: MODERATOR, role: 'moderator' },
+        word: 'Mango',
+        genre: null,
+      });
+    }
+  });
+
+  it('lets the moderator run the game but not vote', () => {
+    const h = new ImposterHarness(3, custom);
+    h.do(MODERATOR, { type: 'startVote' });
+    expect(h.act(MODERATOR, { type: 'vote', target: 'p1' })).toEqual({ ok: false, error: 'NOT_ALLOWED' });
+    expect(imposter.getPlayerView(h.state, MODERATOR).vote).toMatchObject({ canVote: false, total: 3 });
+    h.voteAll(h.imposters[0] as string);
+    expect(h.state.phase.name).toBe('lastGuess');
+  });
+
+  it('reveals "Custom word" as the genre in the result, without listing the moderator', () => {
+    const h = new ImposterHarness(3, custom);
+    const result = imposter.abort(h.state);
+    expect(result.reveals).toContainEqual({ label: 'Genre', value: 'Custom word' });
+    expect(result.roles.map((r) => r.playerId)).not.toContain(MODERATOR);
   });
 });

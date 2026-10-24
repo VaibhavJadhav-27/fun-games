@@ -15,10 +15,16 @@ function secretsCheck(state: ImposterState, viewer: string, view: ImposterView):
   if (!parsed.success) return `schema: ${parsed.error.issues[0]?.path.join('.')}`;
   const raw = JSON.stringify(view);
 
-  if (isImposter(state, viewer)) {
+  if (viewer === state.moderatorId) {
+    if (view.you.role !== 'moderator') return 'moderator given a role';
+    if ('fellowImposters' in view) return 'moderator view lists imposters';
+  } else if (isImposter(state, viewer)) {
     if (view.you.role !== 'imposter') return 'imposter told they are crew';
     if ('word' in view) return 'imposter view has a word field';
     if (raw.includes(JSON.stringify(state.word))) return 'secret word reached the imposter';
+    if (view.genre !== null && (state.settings.difficulty !== 'easy' || state.genreId === null)) {
+      return 'imposter got a genre hint off Easy';
+    }
   } else {
     if (view.you.role !== 'crewmate') return 'crewmate told they are imposter';
     if ('fellowImposters' in view) return 'crewmate view lists imposters';
@@ -59,8 +65,10 @@ function randomAction(h: ImposterHarness, view: ImposterView, id: string): Impos
 }
 
 function play(players: number, imposters: 1 | 2, seed: number): { steps: number; over: boolean } {
-  const h = new ImposterHarness(players, { imposters, maxRounds: 4, difficulty: 'mixed' }, seed);
-  const ids = h.state.players.map((p) => p.id);
+  const difficulty = (['easy', 'medium', 'hard', 'mixed'] as const)[seed % 4] ?? 'mixed';
+  const custom = seed % 5 === 0 ? { source: 'custom' as const, customWord: 'Zebracorn' } : {};
+  const h = new ImposterHarness(players, { imposters, maxRounds: 4, difficulty, ...custom }, seed);
+  const ids = [...h.state.players.map((p) => p.id), ...(h.state.moderatorId ? [h.state.moderatorId] : [])];
   let steps = 0;
 
   for (; steps < 400 && !imposter.result(h.state); steps++) {

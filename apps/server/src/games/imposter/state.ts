@@ -10,7 +10,10 @@ export interface ImposterState extends BaseState {
   players: readonly { id: PlayerId; name: string }[];
   online: Readonly<Record<PlayerId, boolean>>;
   word: string;
-  genreId: GenreId;
+  /** Null when the host typed a custom word. */
+  genreId: GenreId | null;
+  /** The host of a custom-word game: not a player, no role, no vote. */
+  moderatorId: PlayerId | null;
   imposterIds: readonly PlayerId[];
   /** In eviction order. Evicted players are spectators for the rest of the game. */
   evicted: readonly PlayerId[];

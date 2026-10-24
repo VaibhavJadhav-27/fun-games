@@ -46,3 +46,11 @@ export interface GameResult {
 }
 
 export type SessionEndReason = 'kicked' | 'closed' | 'expired' | 'replaced';
+
+/** Server-wide notices set by the admin. Sent to every connected socket. */
+export interface ServerStatus {
+  /** New rooms are blocked; running games carry on. */
+  maintenance: boolean;
+  /** A banner on every screen. `id` changes with each new announcement. */
+  announcement: { id: number; text: string } | null;
+}

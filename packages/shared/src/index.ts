@@ -5,6 +5,7 @@ export * from './games';
 export * from './games/meta';
 export * from './games/voting';
 export * from './games/imposter';
+export * from './admin';
 export * from './protocol/errors';
 export * from './protocol/schemas';
 export * from './protocol/events';

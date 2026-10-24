@@ -1,7 +1,7 @@
 import type { ErrorInfo } from './errors';
 import type { ClientEventName, ClientPayload } from './schemas';
 import type { GameView } from '../games';
-import type { PlayerId, RoomInfo, SessionEndReason } from '../types';
+import type { PlayerId, RoomInfo, ServerStatus, SessionEndReason } from '../types';
 
 export type Ack<T = null> = { ok: true; data: T } | { ok: false; error: ErrorInfo };
 
@@ -41,4 +41,6 @@ export interface ServerToClientEvents {
   'game:view': (payload: { rev: number; view: GameView }) => void;
   /** The host moved this socket into another seat (lost-token recovery). */
   'session:updated': (payload: { playerId: PlayerId }) => void;
+  /** Maintenance mode and the admin's announcement. Sent on connect and on every change. */
+  'server:status': (status: ServerStatus) => void;
 }
