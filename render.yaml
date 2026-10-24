@@ -1,0 +1,29 @@
+# Render Blueprint: one web service runs the Node server, which serves the built web
+# app, the Socket.IO game connection and the admin API from one URL (ARCHITECTURE §16).
+services:
+  - type: web
+    name: fun-games
+    runtime: node
+    plan: free # sleeps after ~15 min idle; use a paid plan for game nights
+    branch: main
+    autoDeploy: true # every push to main redeploys, which ends running games
+    # NODE_ENV=production would make pnpm skip the dev tools the build needs (Vite, tsup).
+    buildCommand: corepack enable && NODE_ENV=development pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /health
+    # Rooms live in memory: never run more than one instance.
+    numInstances: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "22"
+      # Render's proxy is in front of us: read the visitor's IP from X-Forwarded-For.
+      - key: TRUST_PROXY
+        value: "1"
+      # Set these in the Render dashboard (they're secrets, so not in this file).
+      # Leave them unset to switch the admin page off.
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

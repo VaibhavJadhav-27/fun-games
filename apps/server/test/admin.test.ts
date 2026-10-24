@@ -190,6 +190,28 @@ describe('admin API', () => {
     await until(() => stream.text().includes('event: logout') && stream.done());
   });
 
+  it('behind a proxy, limits room creation per visitor, not for everyone at once', async () => {
+    const proxied = await startApp({ port: 0, roomCreatesPerMinute: 1, trustProxy: 1 });
+    const visitor = (ip: string) => {
+      const socket: Client = connect(`http://localhost:${proxied.port}`, {
+        transports: ['websocket'],
+        forceNew: true,
+        reconnection: false,
+        extraHeaders: { 'x-forwarded-for': ip },
+      });
+      clients.push(socket);
+      return (name: string) =>
+        (socket.timeout(2000) as unknown as { emitWithAck(e: string, p: unknown): Promise<{ ok: boolean; error?: { code: string } }> })
+          .emitWithAck('room:create', { name, gameId: 'imposter' });
+    };
+    const a = visitor('203.0.113.1');
+    const b = visitor('203.0.113.2');
+    expect(await a('Asha')).toMatchObject({ ok: true });
+    expect(await b('Ravi')).toMatchObject({ ok: true }); // different visitor, own limit
+    expect(await a('Asha2')).toMatchObject({ ok: false, error: { code: 'RATE_LIMITED' } });
+    await proxied.close();
+  });
+
   it('sends announcements to every socket, including new ones', async () => {
     const cookie = await login();
     const c = client();

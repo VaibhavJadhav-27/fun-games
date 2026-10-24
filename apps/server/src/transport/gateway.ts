@@ -8,6 +8,7 @@ import {
   type ParsedClientPayload,
   type PlayerId,
 } from '@party/shared';
+import { clientIp } from '../clientIp';
 import { errorFields, log } from '../log';
 import { err, ok, type Result } from '../rooms/result';
 import type { ServerControls } from '../admin/controls';
@@ -35,6 +36,8 @@ export interface Gateway {
   broadcaster: Broadcaster;
   controls: ServerControls;
   createLimiter: KeyedRateLimiter;
+  /** The visitor's IP (through trusted proxies), for per-IP limits. */
+  ipOf(socket: AppSocket): string;
   /** Bind a socket to a player, replacing any older socket for that player. */
   bind(socket: AppSocket, room: Room, playerId: PlayerId): void;
   /** Release the socket's membership. `detach` marks the player as disconnected. */
@@ -50,7 +53,7 @@ export function createGateway(
   registry: SocketRegistry,
   broadcaster: Broadcaster,
   controls: ServerControls,
-  roomCreatesPerMinute = ROOM_CREATES_PER_MINUTE,
+  { roomCreatesPerMinute = ROOM_CREATES_PER_MINUTE, trustProxy = 0 }: { roomCreatesPerMinute?: number; trustProxy?: number } = {},
 ): Gateway {
   const gateway: Gateway = {
     manager,
@@ -58,6 +61,7 @@ export function createGateway(
     broadcaster,
     controls,
     createLimiter: new KeyedRateLimiter(roomCreatesPerMinute, roomCreatesPerMinute / 60),
+    ipOf: (socket) => clientIp(socket.handshake.address, socket.handshake.headers['x-forwarded-for'], trustProxy),
 
     bind(socket, room, playerId) {
       const { code, playerId: current } = socket.data;

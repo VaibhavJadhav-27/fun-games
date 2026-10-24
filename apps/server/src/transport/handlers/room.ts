@@ -7,7 +7,7 @@ export function registerRoomHandlers(socket: AppSocket, gateway: Gateway, on: On
 
   on('room:create', ({ name, gameId }) => {
     if (gateway.controls.maintenance) return err('MAINTENANCE');
-    if (!gateway.createLimiter.take(socket.handshake.address)) return err('RATE_LIMITED');
+    if (!gateway.createLimiter.take(gateway.ipOf(socket))) return err('RATE_LIMITED');
     const created = manager.create(name, gameId);
     if (!created.ok) return created;
     const { room, grant } = created.value;

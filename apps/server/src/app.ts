@@ -24,6 +24,8 @@ export interface AppOptions {
   production?: boolean;
   /** Per-IP limit on admin logins. Raised in tests. */
   adminLoginsPerMinute?: number;
+  /** Proxies in front of the server; per-IP limits then read X-Forwarded-For. */
+  trustProxy?: number;
 }
 
 export interface App {
@@ -62,6 +64,7 @@ export async function startApp(options: AppOptions): Promise<App> {
   sockets = createSocketLayer(httpServer, {
     allowedOrigin: options.allowedOrigin,
     roomCreatesPerMinute: options.roomCreatesPerMinute,
+    trustProxy: options.trustProxy ?? 0,
     controls,
     bank: loadWordBank(),
     rng: options.rng,
@@ -75,6 +78,7 @@ export async function startApp(options: AppOptions): Promise<App> {
     socketCount: () => layer0.socketCount(),
     secureCookie: options.production ?? false,
     loginsPerMinute: options.adminLoginsPerMinute,
+    trustProxy: options.trustProxy ?? 0,
   });
   admin = adminHandler;
   sockets.manager.startSweeper();

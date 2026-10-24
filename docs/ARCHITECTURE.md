@@ -510,7 +510,9 @@ All product decisions are recorded in the **SPEC.md §7 decisions log**, which i
 ## 16. Deployment
 
 - `pnpm build` produces `apps/web/dist` and `apps/server/dist`. The server serves the SPA, with a fallback to `index.html` for `/r/*`, plus Socket.IO on `PORT`.
-- Host on Render, Railway or Fly.io as a single instance. Environment variables: `NODE_ENV=production`, `PORT`, `ALLOWED_ORIGIN`.
+- Host on Render, Railway or Fly.io as a single instance. Environment variables: `NODE_ENV=production`, `PORT`, `ALLOWED_ORIGIN`, `TRUST_PROXY`, and `ADMIN_USERNAME` / `ADMIN_PASSWORD` (admin page, §13a).
+- **Render:** `render.yaml` at the repo root is a Blueprint for the whole service (build, start, health check, env). The build installs with `NODE_ENV=development` because pnpm skips devDependencies (Vite, tsup) when `NODE_ENV=production`. Admin credentials are set in the Render dashboard, never in the file.
+- **Behind a proxy**, the socket address is the proxy's, so per-IP limits (room creation, admin login) would apply to everyone at once. `TRUST_PROXY=<hops>` makes them read the client IP from `X-Forwarded-For`: the entry `hops` places from the end, which the trusted proxy wrote. Earlier entries can be forged by the client and are ignored (`clientIp.ts`). Render is 1 hop.
 - `/health` returns `{ ok, rooms, sockets }` for the platform health check.
 - **Scaling later (not v1):** the Socket.IO Redis adapter, room state in Redis keyed by code, and sticky sessions. The pure-reducer design means state is already serialisable.
 
