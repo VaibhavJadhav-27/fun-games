@@ -4,6 +4,7 @@ import { Spinner } from '../ui/Screen';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { adminApi, AdminApiError } from './api';
 import { ControlsPanel } from './ControlsPanel';
+import { GamesPanel } from './GamesPanel';
 import { plural } from './format';
 import { RoomBoard, stateOf } from './RoomBoard';
 import { ServerPanel } from './ServerPanel';
@@ -120,6 +121,7 @@ export function AdminDashboard({ onLoggedOut, onLogout }: { onLoggedOut(): void;
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
               <RoomBoard rooms={data.rooms} now={data.health.now} onClose={closeRoom} onCloseStale={closeStale} />
               <aside className="flex flex-col gap-4 lg:sticky lg:top-6" aria-label="Server controls">
+                <GamesPanel data={data} act={act} />
                 <ControlsPanel data={data} act={act} />
                 <ServerPanel data={data} />
               </aside>

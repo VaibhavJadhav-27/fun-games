@@ -4,6 +4,7 @@ import { seededRng } from '../engine/rng';
 import { PRESENCE_GRACE_MS } from '../rooms/room';
 import { RoomManager } from '../rooms/roomManager';
 import { ADMIN_SESSION_MS, AdminAuth } from './auth';
+import { ServerControls } from './controls';
 
 describe('AdminAuth', () => {
   it('accepts only the exact credentials', () => {
@@ -82,5 +83,20 @@ describe('RoomManager admin helpers', () => {
       ['code', 'createdAt', 'emptySince', 'expiresAt', 'gameId', 'lastActiveAt', 'members', 'status'].sort(),
     );
     expect(Object.keys(summary.members[0] ?? {}).sort()).toEqual(['isHost', 'name', 'presence', 'seat']);
+  });
+});
+
+describe('ServerControls releases', () => {
+  it('releases only built games, starting from the given defaults', () => {
+    const controls = new ServerControls(['imposter', 'traitor'], ['imposter', 'pictionary']);
+    expect(controls.status().released).toEqual(['imposter']); // pictionary isn't built
+    expect(controls.setReleased('pictionary', true)).toBe(false);
+    let notified = 0;
+    controls.onChange(() => notified++);
+    expect(controls.setReleased('traitor', true)).toBe(true);
+    expect(controls.releasedMap()).toEqual({ imposter: true, traitor: true, pictionary: false });
+    expect(notified).toBe(1);
+    controls.setReleased('traitor', true); // no change, no notice
+    expect(notified).toBe(1);
   });
 });

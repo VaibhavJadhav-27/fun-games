@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameView, PlayerId, RoomInfo, ServerStatus, SessionEndReason } from '@party/shared';
+import { GAME_IDS, GAME_META, type GameView, type PlayerId, type RoomInfo, type ServerStatus, type SessionEndReason } from '@party/shared';
 
 export type Connection = 'connecting' | 'connected' | 'disconnected';
 
@@ -35,7 +35,8 @@ export const useStore = create<StoreState>()(() => ({
   playerId: null,
   boundSocketId: null,
   ended: null,
-  server: { maintenance: false, announcement: null },
+  // Until the server says otherwise, assume every built game is released (it corrects this on connect).
+  server: { maintenance: false, announcement: null, released: GAME_IDS.filter((id) => GAME_META[id].available) },
   dismissedAnnouncement: null,
 }));
 

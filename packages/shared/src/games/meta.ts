@@ -6,7 +6,7 @@ export interface GameMeta {
   tagline: string;
   minPlayers: number;
   maxPlayers: number;
-  /** False until the game is built; shown as "Coming soon". */
+  /** False until the game is built. Built games also need releasing in the admin to be playable. */
   available: boolean;
   rules: string[];
 }
@@ -31,11 +31,11 @@ export const GAME_META: Record<GameId, GameMeta> = {
     tagline: 'Traitors strike at night. Find them by day.',
     minPlayers: 5,
     maxPlayers: 15,
-    available: false,
+    available: true,
     rules: [
-      'Traitors know each other. Civilians know nothing.',
-      'At night, the traitors agree on a victim.',
-      'By day, discuss and vote to evict a suspect.',
+      'Traitors know each other. Civilians only know they are civilians.',
+      'At night everyone taps a name: traitors agree on a victim, civilians pick a suspect.',
+      'By day, discuss and vote to evict someone. Civilians win by evicting every traitor.',
     ],
   },
   pictionary: {
@@ -53,10 +53,10 @@ export const GAME_META: Record<GameId, GameMeta> = {
   },
 };
 
-/** Why the host can't start yet, or null if they can. */
-export function startBlockedReason(gameId: GameId, playerCount: number): string | null {
+/** Why the host can't start yet, or null if they can. Unbuilt or unreleased games are "coming soon". */
+export function startBlockedReason(gameId: GameId, playerCount: number, released = true): string | null {
   const meta = GAME_META[gameId];
-  if (!meta.available) return `${meta.name} is coming soon`;
+  if (!meta.available || !released) return `${meta.name} is coming soon`;
   if (playerCount < meta.minPlayers) {
     const missing = meta.minPlayers - playerCount;
     return `Need ${missing} more player${missing === 1 ? '' : 's'}`;

@@ -6,7 +6,7 @@ import type {
   ClientEventName,
   ClientPayload,
   ClientToServerEvents,
-  GameView,
+  ImposterView,
   RoomInfo,
   ServerToClientEvents,
   SessionEndReason,
@@ -38,10 +38,11 @@ function client() {
   const frames: { event: string; payload: unknown }[] = [];
   let latest: RoomInfo | null = null;
   let ended: SessionEndReason | null = null;
-  let view: GameView | null = null;
+  // These tests play Imposter only.
+  let view: ImposterView | null = null;
   socket.onAny((event: string, payload: unknown) => frames.push({ event, payload }));
   socket.on('game:view', (payload) => {
-    view = payload.view;
+    if (payload.view.game === 'imposter') view = payload.view;
   });
   socket.on('room:state', (info) => {
     latest = info;
@@ -262,7 +263,7 @@ describe('rooms over sockets', () => {
         const raw = JSON.stringify(frame.payload);
         expect(raw).not.toContain('fellowImposters');
         if (frame.event === 'game:view') {
-          const v = (frame.payload as { view: GameView }).view;
+          const v = (frame.payload as { view: ImposterView }).view;
           expect(v.you.id).toBe(p.view()?.you.id);
           for (const pl of v.players) if (!pl.evicted) expect(pl.revealedRole).toBeNull();
           if (v.phase === 'vote') expect(raw).not.toContain('ballots');

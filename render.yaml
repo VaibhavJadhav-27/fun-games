@@ -21,6 +21,11 @@ services:
       # Render's proxy is in front of us: read the visitor's IP from X-Forwarded-For.
       - key: TRUST_PROXY
         value: "1"
+      # Games released when the server starts. Others show as "Coming soon" until you
+      # switch them on in /admin. Admin switches reset on restart, so add a game here
+      # once it's live for good.
+      - key: RELEASED_GAMES
+        value: imposter
       # Set these in the Render dashboard (they're secrets, so not in this file).
       # Leave them unset to switch the admin page off.
       - key: ADMIN_USERNAME

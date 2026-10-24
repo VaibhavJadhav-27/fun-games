@@ -5,6 +5,10 @@ import {
   adminAnnouncementSchema,
   adminLoginSchema,
   adminMaintenanceSchema,
+  adminReleaseSchema,
+  GAME_IDS,
+  GAME_META,
+  type GameId,
   isRoomCode,
   type AdminOverview,
 } from '@party/shared';
@@ -128,6 +132,19 @@ export function createAdminHandler(deps: AdminDeps): AdminHandler {
       return { status: 200, body: { ok: true } };
     }
 
+    const gameMatch = /^\/games\/([a-z]+)$/.exec(path);
+    if (gameMatch && method === 'PUT') {
+      const gameId = gameMatch[1] as GameId;
+      if (!GAME_IDS.includes(gameId)) return { status: 404, body: { error: 'No such game' } };
+      const body = await readJson(req, adminReleaseSchema);
+      if (!body) return { status: 400, body: { error: 'Bad request' } };
+      if (!deps.controls.setReleased(gameId, body.released)) {
+        return { status: 409, body: { error: `${GAME_META[gameId].name} isn't built yet` } };
+      }
+      log.info('admin set game release', { game: gameId, released: body.released });
+      return { status: 200, body: { ok: true } };
+    }
+
     if (path === '/announcement' && method === 'PUT') {
       const body = await readJson(req, adminAnnouncementSchema);
       if (!body) return { status: 400, body: { error: 'Announcements are 1–200 characters' } };
@@ -151,6 +168,7 @@ export function createAdminHandler(deps: AdminDeps): AdminHandler {
       },
       usage: deps.manager.stats.snapshot(),
       maintenance: deps.controls.maintenance,
+      released: deps.controls.releasedMap(),
       announcement: deps.controls.announcement,
       rooms: deps.manager
         .list()

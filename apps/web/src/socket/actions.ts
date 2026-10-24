@@ -5,6 +5,7 @@ import {
   type AnyGameSettingsUpdate,
   type ClientEventName,
   type ImposterAction,
+  type TraitorAction,
   type ClientPayload,
   type GameId,
   type PlayerId,
@@ -89,7 +90,7 @@ export const reassignSeat = (fromPlayerId: PlayerId, toPlayerId: PlayerId) =>
   request('host:reassignSeat', { fromPlayerId, toPlayerId });
 
 /** Send a game action for the phase currently on screen (stale taps are rejected server-side). */
-export function gameAction(action: ImposterAction) {
+export function gameAction(action: ImposterAction | TraitorAction) {
   const phaseSeq = useStore.getState().view?.phaseSeq ?? 0;
   return request('game:action', { phaseSeq, action });
 }

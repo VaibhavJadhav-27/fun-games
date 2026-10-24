@@ -9,9 +9,12 @@ import {
   type ImposterPublicSettings,
   type MemberInfo,
   type RoomInfo,
+  type TraitorSettings,
 } from '@party/shared';
 import { ImposterSettingsPanel } from '../games/imposter/ImposterSettingsPanel';
+import { TraitorSettingsPanel } from '../games/traitor/TraitorSettingsPanel';
 import { closeRoom, kickPlayer, leaveRoom, setGame, setSettings, startGame } from '../socket/actions';
+import { useStore } from '../socket/store';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { PlayerList } from '../ui/PlayerList';
@@ -30,6 +33,9 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
   const host = room.members.find((m) => m.isHost);
   const active = room.members.filter((m) => m.presence !== 'left');
   const game = GAME_META[room.gameId];
+  const released = useStore((s) => s.server.released);
+  /** Built and released by the admin; anything else shows "Coming soon" and can't start. */
+  const playable = (id: GameId) => GAME_META[id].available && released.includes(id);
 
   function goTo(next: 'game' | 'settings') {
     setStep(next);
@@ -80,6 +86,13 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
       <ImposterSettingsPanel
         settings={room.settings as ImposterPublicSettings}
         playerCount={active.length - ((room.settings as ImposterPublicSettings).source === 'custom' ? 1 : 0)}
+        editable={isHost}
+        onChange={onSettings}
+      />
+    ) : room.gameId === 'traitor' ? (
+      <TraitorSettingsPanel
+        settings={room.settings as TraitorSettings}
+        playerCount={active.length}
         editable={isHost}
         onChange={onSettings}
       />
@@ -194,7 +207,7 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
                 <span className="flex w-full items-baseline justify-between gap-2">
                   <span className="text-lg font-bold">
                     {meta.name}
-                    {!meta.available && (
+                    {!playable(id) && (
                       <span className="ml-2 rounded-full bg-panel px-2 py-0.5 align-middle text-xs font-semibold text-muted">
                         Coming soon
                       </span>
@@ -216,10 +229,10 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
       {roomButtons}
 
       <Footer error={error}>
-        <Button block onClick={() => goTo('settings')} disabled={!game.available}>
+        <Button block onClick={() => goTo('settings')} disabled={!playable(room.gameId)}>
           Next
         </Button>
-        {!game.available && <p className="text-center text-sm text-muted">{game.name} is coming soon</p>}
+        {!playable(room.gameId) && <p className="text-center text-sm text-muted">{game.name} is coming soon</p>}
       </Footer>
     </main>
   );

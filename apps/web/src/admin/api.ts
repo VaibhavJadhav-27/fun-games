@@ -1,4 +1,4 @@
-import { ADMIN_API_PREFIX, type AdminOverview } from '@party/shared';
+import { ADMIN_API_PREFIX, type AdminOverview, type GameId } from '@party/shared';
 
 export class AdminApiError extends Error {
   constructor(
@@ -34,4 +34,5 @@ export const adminApi = {
   closeStale: () => call<{ closed: number }>('POST', '/rooms/close-stale', {}),
   setMaintenance: (enabled: boolean) => call<{ ok: true }>('PUT', '/maintenance', { enabled }),
   announce: (text: string | null) => call<{ ok: true }>('PUT', '/announcement', { text }),
+  setReleased: (gameId: GameId, released: boolean) => call<{ ok: true }>('PUT', `/games/${gameId}`, { released }),
 };

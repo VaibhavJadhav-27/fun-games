@@ -212,6 +212,31 @@ describe('admin API', () => {
     await proxied.close();
   });
 
+  it('release switches: off shows "coming soon" in open lobbies and blocks the start', async () => {
+    const cookie = await login();
+    const players = ['Asha', 'Ravi', 'Meera', 'Kiran', 'Dev'].map(() => client());
+    const [host] = players as [ReturnType<typeof client>];
+    const created = await host.call('room:create', { name: 'Asha', gameId: 'traitor' });
+    const code = (created.data as { code: string }).code;
+    for (const [i, p] of players.entries()) if (i > 0) await p.call('room:join', { code, name: `P${i}` });
+    await until(() => host.state.room?.members.length === 5 && host.state.room.startBlockedReason === null);
+
+    expect((await api('/games/traitor', { method: 'PUT', body: { released: false }, cookie })).status).toBe(200);
+    await until(() => host.state.room?.startBlockedReason === 'Traitor is coming soon');
+    await until(() => host.state.status?.released.includes('traitor') === false);
+    expect(await host.call('game:start', {})).toMatchObject({ ok: false, error: { code: 'START_BLOCKED' } });
+
+    const overview = (await (await api('/overview', { cookie })).json()) as AdminOverview;
+    expect(overview.released).toMatchObject({ imposter: true, traitor: false, pictionary: false });
+    expect((await api('/games/pictionary', { method: 'PUT', body: { released: true }, cookie })).status).toBe(409);
+    expect((await api('/games/chess', { method: 'PUT', body: { released: true }, cookie })).status).toBe(404);
+
+    await api('/games/traitor', { method: 'PUT', body: { released: true }, cookie });
+    await until(() => host.state.room?.startBlockedReason === null);
+    expect(await host.call('game:start', {})).toMatchObject({ ok: true });
+    await host.call('room:close', {});
+  });
+
   it('sends announcements to every socket, including new ones', async () => {
     const cookie = await login();
     const c = client();
