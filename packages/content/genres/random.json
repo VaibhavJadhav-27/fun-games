@@ -1,0 +1,22 @@
+{
+  "id": "random",
+  "name": "Random Words",
+  "easy": [
+    "Rainbow", "Rain", "Sun", "Moon", "Star", "Cloud", "Fire", "Ice", "Snow", "Wind", "Music", "Dance", "Song",
+    "Dream", "Smile", "Party", "Birthday", "Gift", "Money", "Love", "Friend", "Game", "Cricket", "Football",
+    "Holiday", "Morning", "Night", "Selfie", "Wedding", "Festival", "Diwali", "Holi", "Cartoon", "Robot", "Ghost"
+  ],
+  "medium": [
+    "Thunder", "Lightning", "Earthquake", "Tornado", "Shadow", "Echo", "Magic", "Treasure", "Pirate", "Wizard",
+    "Dragon", "Superhero", "Alien", "Rocket", "Planet", "Galaxy", "Volcano", "Puzzle", "Secret", "Surprise",
+    "Adventure", "Mystery", "Champion", "Picnic", "Road Trip", "Traffic Jam", "Power Cut", "Monsoon", "Sunrise",
+    "Sunset", "Homework", "Exam", "Vacation", "Bonfire", "Fireworks"
+  ],
+  "hard": [
+    "Nostalgia", "Gravity", "Eclipse", "Illusion", "Karma", "Destiny", "Jealousy", "Sarcasm", "Gossip", "Deja Vu",
+    "Hiccup", "Sneeze", "Yawn", "Insomnia", "Procrastination", "Time Travel", "Parallel Universe", "Black Hole",
+    "Teleport", "Hypnosis", "Telepathy", "Camouflage", "Avalanche", "Mirage", "Labyrinth", "Quicksand", "Blackout",
+    "Jet Lag", "Brainwave", "Butterflies in Stomach", "Goosebumps", "Wanderlust", "Spotlight", "Daydream",
+    "Tongue Twister"
+  ]
+}

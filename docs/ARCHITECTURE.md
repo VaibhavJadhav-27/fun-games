@@ -81,7 +81,7 @@ party-games/
 │   │   │   ├── runner.ts             # GameRunner: apply input, rollback, result
 │   │   │   ├── scheduler.ts          # one wakeup timer per room
 │   │   │   ├── streamRelay.ts        # generic stream buffer + relay (§7.4)
-│   │   │   ├── voting.ts             # shared vote phase: 60s, early close, evictions
+│   │   │   ├── voting.ts             # shared vote phase: live counts, 60s / all-voted close, evictions
 │   │   │   ├── words.ts              # pickWords, normalizeGuess, isCloseGuess (Levenshtein ≤ 1)
 │   │   │   ├── rng.ts                # seeded rng, shuffle, pickRandom
 │   │   │   └── testing/              # simulate(), leakCheck(), fake clock
@@ -111,7 +111,7 @@ party-games/
     │   ├── games/<id>.ts             # Settings, Action, PlayerView (+ zod schemas), Notice
     │   └── genres.ts                 # genre metadata only: { id, name, counts: { easy, medium, hard } }
     └── content/                      # server-only (web must not depend on it)
-        └── genres/<id>.json          # { id, name, words: [{ text, difficulty }] }; validated by zod at boot
+        └── genres/<id>.json          # { id, name, easy[], medium[], hard[] }; validated by zod at boot
 ```
 
 **Boundary rules (lint-enforced):** `apps/web` must not import `packages/content`. Only `transport/` may import `socket.io`. Only `transport/broadcaster.ts` may call `.emit` or `.to(`. `games/` must not import `rooms/`, `transport/`, `Date`, or `Math.random`.
@@ -191,7 +191,7 @@ Settings are revalidated whenever the member count changes. If a setting becomes
 - **Presence goes to the game as an input** (`{kind: 'presence'}`), and each game applies its own away rules (§8).
 - **Host transfer:** if the host has been `away` for 60s, the host role passes to the online member with the earliest `joinedAt`. If the host leaves or is kicked, the transfer happens immediately. The old host doesn't get the role back on return.
 - **Kick:** the host can kick in the lobby or mid-game, but not themselves. The token is revoked, the socket gets `session:ended {reason: 'kicked'}`, and during a game the player is treated as `left`.
-- **Seat reassign (a player lost their token):** the player rejoins under a new name as a waiting member. The host taps an `away`/`left` player and chooses "Give this seat to <new>". The server moves the old `PlayerId`'s seat to the new socket. The waiting member record is deleted and the new token maps to the **old** PlayerId, so game state needs no change. The new display name replaces the old one.
+- **Seat reassign (a player lost their token):** the player rejoins under a new name as a waiting member. The host taps an `away`/`left` player and chooses "Give this seat to <new>". The server moves the old `PlayerId`'s seat to the new socket. The waiting member record is deleted and the new token maps to the **old** PlayerId, so game state needs no change. The seat keeps its original display name, so the game and the room list stay consistent.
 
 ---
 
@@ -215,11 +215,12 @@ interface BaseState { phase: Phase<string>; }
 interface SetupInput<Cfg> {
   players: { id: PlayerId; name: string; online: boolean }[];  // seat order
   settings: Cfg;
-  chatEnabled: boolean;        // in-person vs remote behaviours (e.g. Imposter clues)
+  moderator: PlayerId | null;  // the host, when settings.hostModerates(cfg); never in `players`
+  chatEnabled: boolean;        // optional remote-play chat (M5)
 }
 
 type GameInput<A> =
-  | { kind: 'action'; by: PlayerId; isHost: boolean; action: A } // host-only actions: startVote, next, skipTurn…
+  | { kind: 'action'; by: PlayerId; isHost: boolean; action: A } // host-only actions: startVote, continue, skipTurn…
   | { kind: 'presence'; playerId: PlayerId; online: boolean }
   | { kind: 'left'; playerId: PlayerId }             // kicked / left: permanent
   | { kind: 'tick' };                                // ctx.now passed nextWakeup()
@@ -227,7 +228,7 @@ type GameInput<A> =
 type Addressed<N> = { to: 'all' | PlayerId[]; notice: N };   // "So close!" → [guesser]
 
 type Step<S, N> =
-  | { ok: true; state: S; notices?: Addressed<N>[] }
+  | { ok: true; state: S; notices?: Addressed<N>[] }   // notices arrive with Pictionary (M4); Imposter needs none
   | { ok: false; error: GameErrorCode };             // NOT_YOUR_TURN, WRONG_PHASE, INVALID_TARGET…
 
 interface GameDefinition<S extends BaseState, A, V extends BaseView, Cfg, N> {
@@ -240,6 +241,10 @@ interface GameDefinition<S extends BaseState, A, V extends BaseView, Cfg, N> {
     defaults(playerCount: number): Cfg;
     clamp(cfg: Cfg, playerCount: number): Cfg;              // after member-count changes
     validate(cfg: Cfg, playerCount: number): string | null; // human-readable reason
+    update?(prev: Cfg, raw: unknown): Result<Cfg>;          // host change merged with current (keeps secrets)
+    toPublic?(cfg: Cfg): PublicCfg;                         // what RoomInfo carries (secrets stripped)
+    hostModerates?(cfg: Cfg): boolean;                      // host runs the game, isn't a player
+    forgetSecrets?(cfg: Cfg): Cfg;                          // after a game, or when the host changes
   };
   actionSchema: ZodType<A>;      // zod for game:action payloads (shared package)
   viewSchema: ZodType<V>;        // strict union of every role's view (shared package)
@@ -268,8 +273,8 @@ interface BaseView {
 
 **The contract every plugin must follow:**
 1. **Pure and total.** No I/O, no `Date`, no `Math.random`, and no mutation of its input (deep-freeze catches this in tests). Invalid input returns `{ok: false}`; it must never throw. If it throws anyway, the runner rolls back (§6.1).
-2. **Time is in state.** Every deadline the game cares about (phase end, hint reveal, traitor away cutoff, clue soft timer) is stored in state. `nextWakeup` returns the minimum, and on `tick` the game handles every deadline `≤ ctx.now`, possibly several.
-3. **Phases never stall.** Discussion and turns are **untimed** (SPEC §3). Every phase that waits on someone has either a deadline with a defined timeout outcome (vote, last-chance guess, Traitor night cap) or a host action that moves it on (Start vote, Next, Skip turn, End turn, Continue). Away players are skipped automatically wherever a turn would wait on them. The host can always end the game as a last resort.
+2. **Time is in state.** Every deadline the game cares about (vote deadline, last-chance guess, Traitor night cap, traitor away cutoff) is stored in state. `nextWakeup` returns the minimum, and on `tick` the game handles every deadline `≤ ctx.now`, possibly several.
+3. **Phases never stall.** Discussion and turns are **untimed** (SPEC §3). Every phase that waits on someone has either a deadline with a defined timeout outcome (vote, last-chance guess, Traitor night cap) or a host action that moves it on (Start voting, Continue, Skip turn, End turn, Next turn). Away players are skipped automatically wherever a turn would wait on them. The host can always end the game as a last resort.
 4. **Views are allow-lists.** `getPlayerView` builds a fresh object field by field. It never spreads or copies state (`...state`, `...player`). See §8.
 5. **Results are the only reveal-all.** `result()` contains all roles, the word and scores, and the runner only reads it once the game is over.
 
@@ -290,7 +295,7 @@ dispatch(input):
 **Scheduler:** one `setTimeout` per room, re-armed after every step to `nextWakeup`. When it fires, it dispatches `{kind: 'tick'}`. Each arm carries an epoch number, so a stale callback is a no-op. Ticks that fire early or late are harmless because the game compares deadlines with `ctx.now`.
 
 **Shared helpers** that plugins use, implemented once with their own tests:
-- `voting.ts` implements SPEC's *Shared: voting* once for Imposter and Traitor. `openVote(eligible, now)` sets a 60s deadline; `castVote` allows changing the vote and no self-votes; `isComplete` is true when every eligible *online* player has voted (this closes the vote early); `progress` returns `{voted, total}` only; and `tally` returns `{kind: 'out', id} | {kind: 'none', reason: 'tie' | 'skip'}`. Missing and away votes count as skip. Eligible means living, not evicted.
+- `voting.ts` implements SPEC's *Shared: voting* once for Imposter and Traitor. `openVote(eligible, now)` sets a 60s deadline; `castVote` allows changing the vote and no self-votes; `isComplete` is true when every eligible *online* player has voted (this closes the vote immediately); `liveCounts` returns `{ counts: Record<candidateId | 'skip', number>, voted, total }` (**counts only, never voter→target pairs**); and `tally` returns `{ outcome: {kind: 'out', id} | {kind: 'none', reason: 'tie' | 'skip'}, counts, ballots }`, where `ballots` (who voted for whom) appears only in the result view. Missing and away votes count as skip. Eligible means living, not evicted.
 - `words.ts`: `pickWords(genres, difficulty, n, rng, exclude)` (no repeats within a game), `normalizeGuess` (lowercase, trim, collapse spaces) and `isCloseGuess` (Levenshtein distance 1 on the normalised strings, about 15 lines, no dependency).
 - `rng.ts`: `shuffle` and `pickRandom`.
 
@@ -323,7 +328,7 @@ All names, payloads and ack types are defined once in `packages/shared/src/proto
 | `lobby:kick` | `{ playerId }` | host | Any status (§5.2) |
 | `host:reassignSeat` | `{ fromPlayerId, toPlayerId }` | host | `from` must be away/left and playing; `to` must be waiting |
 | `game:start` | `{}` | host | |
-| `game:action` | `{ phaseSeq, action }` | playing member | `action` is parsed by the game's `actionSchema`. Host-only actions (`startVote`, `next`, `skipTurn`, `endTurn`, `continue`) go through here too, and the game checks `isHost`. The ack may carry a **private** result (e.g. a guess result: `'correct' \| 'close' \| 'wrong'`) |
+| `game:action` | `{ phaseSeq, action }` | playing member | `action` is parsed by the game's `actionSchema`. Host-only actions (`startVote`, `continue`, `skipTurn`, `endTurn`, `nextTurn`) go through here too, and the game checks `isHost`. The ack may carry a **private** result (e.g. a guess result: `'correct' \| 'close' \| 'wrong'`) |
 | `game:end` | `{}` | host | Ends the game early through `def.abort()` (§5.1) |
 | `game:stream` | `{ channelKey, op }` | playing member | No ack. Dropped unless `def.stream.canSend` |
 | `results:playAgain` · `results:toLobby` | `{}` | host | |
@@ -381,17 +386,17 @@ There is no "emit to room with a game payload" function to misuse.
 - `simulate(def, seed, players)` plays full random games with a fake clock: random legal actions, random timeouts, disconnects and reconnects.
 - At **every step, for every player**, the test serialises everything that player would receive (`JSON.stringify` of the view plus notices addressed to them) and runs the game's **secret oracle**, `secretsFor(state, viewer): { forbiddenStrings: string[]; check(view): string | null }`. For example:
   - Imposter: a crewmate's payload never contains the imposter IDs in any role-bearing field. An imposter's payload never contains the word before reveal (string search on the serialised payload).
-  - Traitor: a civilian's payload never has another player's role or night picks. A traitor's payload has the other traitors' identities but no civilian's role field. Vote targets never appear before the tally.
+  - Traitor: a civilian's payload never has another player's role or night picks. A traitor's payload has the other traitors' identities but no civilian's role field. Who voted for whom never appears before the result (only per-name counts).
   - Pictionary: word options appear only for the drawer. The word appears only for the drawer and for guessers who have already guessed it. Correct guess text never reaches anyone.
 - This runs over 200 seeds per game in CI.
 - **Integration (the real wire):** a socket test connects clients with `socket.io-client`, records every raw incoming frame per client, plays a scripted game and runs the same oracle on the raw frames.
 
 **Layer 5: side channels (rules the views must follow).**
-- **Votes in progress:** views contain only `{voted, total}`. They don't show who has voted or for whom. The tally appears at reveal.
+- **Votes in progress:** views contain only per-name counts plus `{voted, total}` (SPEC decision: live counts are public). They never contain voter→target pairs, so a phone shows *how many* voted for Ravi but not *who*; the ballots appear only in the result phase view. The player's own current vote is in their own view only.
 - **Traitor night:** every living player gets a view with the same phase name and the same safety-cap deadline. The night ends early when the traitors agree (SPEC decision). That ending tells everyone the traitors agreed, but not who they are, so it's an accepted, identity-free signal. Picks and lock status are only in traitors' views. The web app renders the same full-screen night layout for both roles, so a civilian screen looks the same as a traitor screen to someone watching.
 - **Dead players (Traitor spectators)** get civilian-level information only. They don't learn the traitors, so they can't hint out loud.
 - **Pictionary guesses:** a guess goes in a `game:action`, and the result comes back **only in the sender's ack**. Others get `{to: 'all', notice: 'guessed', name}`. Close guesses are notified to the guesser only. Guesses never go through chat.
-- **Identifiers carry no information:** PlayerIds are random UUIDs, seat and clue order are shuffled independently of role assignment, and roles are assigned by `rng` after seats are fixed.
+- **Identifiers carry no information:** PlayerIds are random UUIDs, seat order is shuffled independently of role assignment, and roles are assigned by `rng` after seats are fixed.
 - **Tokens:** session tokens appear only in the create/join ack to their owner. The server stores a SHA-256 hash, and tokens never appear in RoomInfo, logs or errors.
 - **Client store:** the zustand store holds only what the server sent, so nothing beyond the player's own view is ever present.
 
@@ -421,13 +426,14 @@ There is no "emit to room with a game payload" function to misuse.
 Behaviour follows SPEC §3 and the SPEC decisions log. Phases marked ⏱ have a deadline; every other phase is untimed and moved on by a player or host action (`[host]` = host-only action). Away handling is listed for each game.
 
 ### 11.1 Imposter
-- **Phases:** `clue → discussion → vote ⏱60s → reveal → lastGuess ⏱30s? → (clue of next round | over)`.
-- **Server state:** `word`, `wordGenreId`, `imposterIds`, `evicted`, `clueOrder`, `clueIndex`, `clues` (remote mode), `vote`, `round`, `maxRounds`, `lastGuess`, `usedWords`.
-- **Clue:** the current player sends `done` (in-person) or `clue(text)` (remote, one word, max 30 characters), or `[host] next` skips them. Away and evicted players are skipped automatically. After the last player, the phase becomes `discussion`.
-- **Discussion:** `[host] startVote` opens the shared vote (§6.1).
-- **Reveal:** shows the tally and the evicted player's role. If the evicted player is an imposter, the next phase is `lastGuess`; otherwise `[host] continue` checks the win conditions and starts the next round with the same word and a new clue order.
-- **Views:** a crewmate gets `word` and `genre`. An imposter gets `genre` and `role: 'imposter'`, plus `fellowImposters` when there are 2 imposters. Everyone gets the public player list (with evicted marks), clue order and clues, vote progress, and revealed evictions with their roles.
-- **Away:** an away player's clue turn is skipped and their vote counts as skip. An away imposter at `lastGuess` fails when the deadline passes.
+- **Phases:** `discussion → vote ⏱60s (or all voted) → result → lastGuess ⏱30s? → (discussion of next round | over)`.
+- **Server state:** `word`, `wordGenreId`, `imposterIds`, `evicted`, `vote`, `lastResult`, `round`, `maxRounds`, `lastGuess`.
+- **Discussion:** no app turns; the group goes round robin out loud. `[host] startVote` opens the shared vote (§6.1).
+- **Vote:** `vote(targetId | 'skip')` from any eligible player, changeable until the vote closes. Every vote change rebroadcasts views, so live counts update on every screen.
+- **Result:** the final counts, ballots, and the outcome (`imposterCaught` / `innocentEvicted` / `nobody`) with the evicted player's role. If an imposter was caught, the next phase is `lastGuess`. Otherwise `[host] continue` checks the win conditions and starts the next round with the same word.
+- **Custom word:** settings carry a secret `customWord`. `toPublic` swaps it for `customWordSet`, `update` keeps it when the host omits it, and `hostModerates` makes the host a moderator: excluded from `players`, the player count and the vote, with a `role: 'moderator'` view (word + genre, no roles). `forgetSecrets` clears it after the game and on host change.
+- **Views:** a crewmate gets `word` and `genre` (null for a custom word). An imposter gets `role: 'imposter'` and `genre` only on Easy (otherwise null), plus `fellowImposters` when there are 2 imposters. Everyone gets the public player list (with evicted marks), live vote counts during the vote, and revealed evictions with their roles.
+- **Away:** an away player's vote counts as skip. An away imposter at `lastGuess` fails when the deadline passes.
 
 ### 11.2 Traitor
 - **Phases:** `night ⏱60s cap → morning → day → vote ⏱60s → voteReveal → (night | over)`.
@@ -471,6 +477,14 @@ Behaviour follows SPEC §3 and the SPEC decisions log. Phases marked ⏱ have a 
 
 ---
 
+## 13a. Admin dashboard
+
+- **Route:** the SPA serves `/admin` (lazy-loaded, linked from nowhere). Its API is plain HTTP under `/admin/api/*`, handled by `apps/server/src/admin/http.ts` before static files. It's switched off (404) unless `ADMIN_USERNAME` and `ADMIN_PASSWORD` are set. Locally they come from `apps/server/.env` (git-ignored; see `.env.example`).
+- **Auth:** credentials are compared in constant time (SHA-256, then `timingSafeEqual`). Logins are limited to 5 per minute per IP. A session is a random token in an `HttpOnly; SameSite=Strict; Path=/admin/api` cookie (`Secure` in production), stored hashed in memory for 8 hours. Every request except GET must carry `x-party-admin: 1` (CSRF guard).
+- **Data:** `Room.adminSummary()` returns public room fields only (code, game, status, member names/presence/seat, timestamps). It never reads game state, so words and roles can't reach the dashboard. `UsageStats` (in `rooms/`) counts rooms, games and peaks in memory.
+- **Live updates (push a ping, then fetch):** `GET /admin/api/events` is a Server-Sent Events stream (`admin/events.ts`). `RoomManager.onChange` (any room's public info changed, created or closed) and `ServerControls.onChange` trigger an `event: changed` ping. Pings carry **no data** and are coalesced to at most one per 300ms. The dashboard answers each ping by fetching `/overview`, the same full snapshot as before, so the push can't drift or leak anything. A 25s heartbeat keeps proxies from closing the stream and re-checks the session (`event: logout` once it's invalid). There are at most 10 streams. The dashboard also polls every 30s as a backstop.
+- **Controls:** `ServerControls` holds maintenance mode and the announcement. Changes go out as `server:status` to every socket through the Broadcaster, which also sends it on connect. In maintenance mode, `room:create` fails with `MAINTENANCE`.
+
 ## 14. Testing strategy
 
 | Layer | What | Where |
@@ -513,7 +527,7 @@ Each milestone is one session. It's done only when its acceptance criteria pass,
 
 **M2: Engine + Imposter**
 - `GameDefinition`, the runner with rollback, the scheduler, `voting`/`words`/`rng`, `simulate` + `leakCheck`, `packages/content` with the 10 genres (difficulty-tagged), the lobby genre and difficulty picker, host End game, the results screen, play again and back to lobby.
-- The full Imposter game, including 2 imposters, both clue modes, and untimed discussion with host Start vote.
+- The full Imposter game, including 2 imposters, untimed out-loud discussion, host Start voting, live vote counts, and the caught/innocent result with the last-chance guess.
 - ✅ A full game is playable end to end on phones. Leak tests over 200 seeds and the raw-frame integration test prove the imposter's identity and the word never leak.
 
 **M3: Traitor**

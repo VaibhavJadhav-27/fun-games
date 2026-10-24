@@ -1,0 +1,23 @@
+{
+  "id": "places",
+  "name": "Places",
+  "easy": [
+    "School", "Hospital", "Airport", "Beach", "Railway Station", "Cinema", "Temple", "Park", "Market", "Restaurant",
+    "Bank", "Library", "Zoo", "Mall", "Hotel", "Gym", "Kitchen", "Bathroom", "Garden", "Farm", "Jungle", "Desert",
+    "Mountain", "River", "Bus Stop", "Petrol Pump", "Police Station", "Playground", "Swimming Pool", "Mumbai",
+    "Delhi", "Goa", "Taj Mahal", "India Gate", "Classroom"
+  ],
+  "medium": [
+    "Museum", "Stadium", "Circus", "Prison", "Church", "Mosque", "Gurudwara", "Supermarket", "Bakery", "Pharmacy",
+    "Post Office", "Factory", "Village", "Island", "Volcano", "Cave", "Waterfall", "Lighthouse", "Space Station",
+    "Amusement Park", "Wedding Hall", "Haunted House", "Submarine", "Cruise Ship", "Hostel", "Kerala", "Jaipur",
+    "Shimla", "Manali", "Kolkata", "Bengaluru", "Paris", "London", "Dubai", "Gateway of India"
+  ],
+  "hard": [
+    "Red Fort", "Qutub Minar", "Hawa Mahal", "Charminar", "Golden Temple", "Marine Drive", "Ladakh",
+    "Rann of Kutch", "Sundarbans", "Andaman Islands", "Varanasi", "Rishikesh", "Hampi", "Ooty", "Darjeeling",
+    "Eiffel Tower", "Statue of Liberty", "Great Wall of China", "Pyramids", "Colosseum", "Big Ben", "Burj Khalifa",
+    "Niagara Falls", "Mount Everest", "Sahara Desert", "Amazon Rainforest", "Antarctica", "Las Vegas", "Hollywood",
+    "Disneyland", "Venice", "Tokyo", "Singapore", "Maldives", "Switzerland"
+  ]
+}

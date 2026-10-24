@@ -58,6 +58,26 @@ export default defineConfig(
     ignores: ['apps/server/src/transport/broadcaster.ts'],
     rules: { 'no-restricted-syntax': ['error', noDefaultExport, ...noEmitOutsideBroadcaster] },
   },
+  // Games are pure plugins: time and randomness come from ctx; no room/transport/socket access.
+  {
+    files: ['apps/server/src/games/**/*.ts'],
+    rules: {
+      'no-restricted-globals': ['error', { name: 'Date', message: 'Use ctx.now (games are pure).' }],
+      'no-restricted-properties': [
+        'error',
+        { object: 'Math', property: 'random', message: 'Use ctx.rng (games are pure).' },
+      ],
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [{ name: 'socket.io', message: 'Games never touch sockets.' }],
+          patterns: [
+            { group: ['**/rooms/**', '**/transport/**'], message: 'Games must not depend on rooms or transport.' },
+          ],
+        },
+      ],
+    },
+  },
   {
     files: ['apps/server/src/transport/broadcaster.ts'],
     rules: { 'no-restricted-syntax': ['error', noDefaultExport] },

@@ -6,6 +6,7 @@ import type {
   ClientEventName,
   ClientPayload,
   ClientToServerEvents,
+  GameView,
   RoomInfo,
   ServerToClientEvents,
   SessionEndReason,
@@ -37,7 +38,11 @@ function client() {
   const frames: { event: string; payload: unknown }[] = [];
   let latest: RoomInfo | null = null;
   let ended: SessionEndReason | null = null;
+  let view: GameView | null = null;
   socket.onAny((event: string, payload: unknown) => frames.push({ event, payload }));
+  socket.on('game:view', (payload) => {
+    view = payload.view;
+  });
   socket.on('room:state', (info) => {
     latest = info;
   });
@@ -62,6 +67,7 @@ function client() {
     attempt,
     room: () => latest,
     ended: () => ended,
+    view: () => view,
     connected: () => new Promise<void>((resolve) => socket.on('connect', () => resolve())),
   };
 }
@@ -174,11 +180,129 @@ describe('rooms over sockets', () => {
     await until(() => host.room()?.members.length === 2);
     for (const c of [host, ravi]) {
       for (const frame of c.frames) {
-        expect(['room:state', 'session:ended']).toContain(frame.event);
+        expect(['room:state', 'session:ended', 'game:view', 'session:updated', 'server:status']).toContain(frame.event);
         const raw = JSON.stringify(frame.payload);
         expect(raw).not.toContain(grant.sessionToken);
         expect(raw).not.toContain(raviGrant.sessionToken);
       }
+    }
+  });
+
+  it('plays a full Imposter game; the wire never carries a secret to the wrong player', async () => {
+    const names = ['Asha', 'Ravi', 'Meera', 'Kiran'];
+    const players = names.map(() => client());
+    const [host] = players as [ReturnType<typeof client>];
+    const { code } = await host.call('room:create', { name: names[0] as string, gameId: 'imposter' });
+    for (const [i, p] of players.entries()) {
+      if (i > 0) await p.call('room:join', { code, name: names[i] as string });
+    }
+    await until(() => host.room()?.members.length === 4);
+    await host.call('lobby:setSettings', {
+      settings: { source: 'genres', genres: ['fruits-vegetables'], difficulty: 'easy', imposters: 1, maxRounds: 3 },
+    });
+    await host.call('game:start', {});
+    await until(() => players.every((p) => p.view() !== null));
+
+    const imposter = players.find((p) => p.view()?.you.role === 'imposter');
+    const crew = players.filter((p) => p !== imposter);
+    expect(imposter).toBeDefined();
+    expect(crew).toHaveLength(3);
+    const crewView = crew[0]?.view();
+    if (!crewView || !('word' in crewView) || !imposter) throw new Error('bad setup');
+    const word = crewView.word;
+    const imposterId = imposter.view()?.you.id as string;
+
+    // Host opens the vote; live counts show up for everyone.
+    await host.call('game:action', { phaseSeq: host.view()?.phaseSeq ?? 0, action: { type: 'startVote' } });
+    await until(() => players.every((p) => p.view()?.phase === 'vote'));
+    const firstVoter = crew.find((p) => p !== host) ?? (crew[0] as ReturnType<typeof client>);
+    await firstVoter.call('game:action', {
+      phaseSeq: firstVoter.view()?.phaseSeq ?? 0,
+      action: { type: 'vote', target: imposterId },
+    });
+    await until(() => imposter.view()?.vote?.counts.find((c) => c.target === imposterId)?.count === 1);
+
+    // Everyone else votes: the vote closes early and the imposter is caught.
+    for (const p of players) {
+      if (p === firstVoter) continue;
+      const target = p === imposter ? 'skip' : imposterId;
+      await p.call('game:action', { phaseSeq: p.view()?.phaseSeq ?? 0, action: { type: 'vote', target } });
+    }
+    await until(() => players.every((p) => p.view()?.phase === 'lastGuess'));
+    expect(host.view()?.result).toMatchObject({ outcome: 'caught', evictedId: imposterId });
+
+    // Only the imposter may guess; a wrong guess hands the win to the crew.
+    const bystander = crew[0] as ReturnType<typeof client>;
+    expect(
+      await bystander.attempt('game:action', {
+        phaseSeq: bystander.view()?.phaseSeq ?? 0,
+        action: { type: 'guess', text: 'x' },
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'NOT_ALLOWED' } });
+    await imposter.call('game:action', {
+      phaseSeq: imposter.view()?.phaseSeq ?? 0,
+      action: { type: 'guess', text: 'definitely wrong' },
+    });
+    await until(() => players.every((p) => p.room()?.status === 'results'));
+    expect(host.room()?.result?.headline).toBe('Crewmates win!');
+    expect(host.room()?.result?.reveals).toContainEqual({ label: 'Word', value: word });
+
+    // Wire check: before the results, nothing the imposter received contained the word,
+    // and no crewmate ever received another player's role before eviction.
+    const beforeResults = (frames: { event: string; payload: unknown }[]) =>
+      frames.slice(
+        0,
+        frames.findIndex((f) => f.event === 'room:state' && (f.payload as RoomInfo).status === 'results'),
+      );
+    for (const frame of beforeResults(imposter.frames)) {
+      expect(JSON.stringify(frame.payload)).not.toContain(JSON.stringify(word));
+    }
+    for (const p of crew) {
+      for (const frame of beforeResults(p.frames)) {
+        const raw = JSON.stringify(frame.payload);
+        expect(raw).not.toContain('fellowImposters');
+        if (frame.event === 'game:view') {
+          const v = (frame.payload as { view: GameView }).view;
+          expect(v.you.id).toBe(p.view()?.you.id);
+          for (const pl of v.players) if (!pl.evicted) expect(pl.revealedRole).toBeNull();
+          if (v.phase === 'vote') expect(raw).not.toContain('ballots');
+        }
+      }
+    }
+
+    // Host plays again: a fresh game starts for the same players.
+    await host.call('results:playAgain', {});
+    await until(() => players.every((p) => p.room()?.status === 'playing' && p.view()?.phase === 'discussion'));
+  });
+
+  it("never sends the host's custom word to anyone else", async () => {
+    const names = ['Asha', 'Ravi', 'Meera', 'Kiran'];
+    const players = names.map(() => client());
+    const [host, ...others] = players as [ReturnType<typeof client>, ...ReturnType<typeof client>[]];
+    const { code } = await host.call('room:create', { name: names[0] as string, gameId: 'imposter' });
+    for (const [i, p] of others.entries()) await p.call('room:join', { code, name: names[i + 1] as string });
+    await until(() => host.room()?.members.length === 4);
+    await host.call('lobby:setSettings', {
+      settings: { source: 'custom', genres: ['animals'], difficulty: 'medium', imposters: 1, maxRounds: 3, customWord: 'Zebracorn' },
+    });
+    await host.call('game:start', {});
+    await until(() => players.every((p) => p.view() !== null));
+    expect(host.view()?.you.role).toBe('moderator');
+    const imposter = others.find((p) => p.view()?.you.role === 'imposter');
+    expect(imposter).toBeDefined();
+    await host.call('game:end', {});
+    await until(() => players.every((p) => p.room()?.status === 'results'));
+
+    // RoomInfo never carried it; only crewmates' own views did, until the reveal.
+    for (const p of players) {
+      for (const f of p.frames) {
+        if (f.event === 'room:state' && (f.payload as RoomInfo).status !== 'results') {
+          expect(JSON.stringify(f.payload)).not.toContain('Zebracorn');
+        }
+      }
+    }
+    for (const f of imposter?.frames ?? []) {
+      if (f.event === 'game:view') expect(JSON.stringify(f.payload)).not.toContain('Zebracorn');
     }
   });
 

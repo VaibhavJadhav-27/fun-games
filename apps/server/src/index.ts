@@ -11,8 +11,13 @@ const app = await startApp({
   port: config.port,
   webDist: config.production ? config.webDist : undefined,
   allowedOrigin: config.allowedOrigin,
+  admin: config.admin,
+  production: config.production,
 });
-log.info('server listening', { port: app.port, production: config.production });
+log.info('server listening', { port: app.port, production: config.production, admin: config.admin !== undefined });
+if (config.admin && config.production && config.admin.password.length < 12) {
+  log.warn('ADMIN_PASSWORD is short; use 12+ characters in production');
+}
 
 const shutdown = (): void => {
   log.info('shutting down');

@@ -10,9 +10,14 @@ export const ERROR_CODES = [
   'WRONG_STATUS',
   'INVALID_TARGET',
   'START_BLOCKED',
+  'INVALID_SETTINGS',
+  'WRONG_PHASE',
+  'STALE_PHASE',
+  'NOT_ALLOWED',
   'GAME_UNAVAILABLE',
   'INTERNAL',
   'TIMEOUT',
+  'MAINTENANCE',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -33,7 +38,12 @@ export const DEFAULT_ERROR_MESSAGES: Record<ErrorCode, string> = {
   WRONG_STATUS: 'You cannot do that right now.',
   INVALID_TARGET: 'That player is not valid.',
   START_BLOCKED: 'The game cannot start yet.',
+  INVALID_SETTINGS: 'Those settings are not valid.',
+  WRONG_PHASE: 'You cannot do that right now.',
+  STALE_PHASE: 'The game moved on. Try again.',
+  NOT_ALLOWED: 'You cannot do that.',
   GAME_UNAVAILABLE: 'This game is not available yet.',
   INTERNAL: 'Something went wrong. Please try again.',
   TIMEOUT: 'The server did not respond. Check your connection.',
+  MAINTENANCE: "We're doing some maintenance, so new rooms are paused. Try again soon.",
 };

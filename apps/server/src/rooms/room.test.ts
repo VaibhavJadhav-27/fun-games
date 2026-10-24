@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { loadWordBank } from '@party/content';
 import type { PlayerId, SessionEndReason } from '@party/shared';
 import {
   EMPTY_ROOM_TTL_MS,
@@ -8,17 +9,26 @@ import {
   Room,
 } from './room';
 
+const BANK = loadWordBank();
+
 function setup() {
   const ended: { playerId: PlayerId; reason: SessionEndReason }[] = [];
   let changes = 0;
   let closed = false;
-  const room = new Room('ABCD', 'imposter', {
-    changed: () => changes++,
-    sessionEnded: (_r, playerId, reason) => ended.push({ playerId, reason }),
-    closed: () => {
-      closed = true;
+  const room = new Room(
+    'ABCD',
+    'imposter',
+    {
+      changed: () => changes++,
+      gameChanged: () => {},
+      sessionEnded: (_r, playerId, reason) => ended.push({ playerId, reason }),
+      seatMoved: () => {},
+      closed: () => {
+        closed = true;
+      },
     },
-  });
+    { bank: BANK },
+  );
   const join = (name: string) => {
     const result = room.join(name);
     if (!result.ok) throw new Error(result.code);
@@ -211,7 +221,7 @@ describe('lobby', () => {
     expect(room.setGame(ravi.playerId, 'traitor')).toEqual({ ok: false, code: 'NOT_HOST' });
     expect(room.setGame(host.playerId, 'traitor').ok).toBe(true);
     expect(room.info().gameId).toBe('traitor');
-    expect(room.info().startBlockedReason).toBe('Need 3 more players');
+    expect(room.info().startBlockedReason).toBe('Traitor is coming soon');
   });
 });
 

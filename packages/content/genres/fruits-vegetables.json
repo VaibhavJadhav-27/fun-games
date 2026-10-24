@@ -1,0 +1,23 @@
+{
+  "id": "fruits-vegetables",
+  "name": "Fruits & Vegetables",
+  "easy": [
+    "Apple", "Banana", "Mango", "Orange", "Grapes", "Watermelon", "Pineapple", "Strawberry", "Cherry", "Coconut",
+    "Lemon", "Papaya", "Guava", "Pomegranate", "Tomato", "Potato", "Onion", "Carrot", "Cabbage", "Cauliflower",
+    "Peas", "Corn", "Cucumber", "Pumpkin", "Chilli", "Garlic", "Ginger", "Spinach", "Brinjal", "Mushroom",
+    "Capsicum", "Pear", "Peach", "Kiwi", "Lime"
+  ],
+  "medium": [
+    "Lychee", "Chikoo", "Custard Apple", "Jackfruit", "Plum", "Apricot", "Fig", "Dates", "Blueberry", "Raspberry",
+    "Avocado", "Muskmelon", "Sweet Lime", "Jamun", "Amla", "Tamarind", "Beetroot", "Radish", "Broccoli",
+    "Lettuce", "Okra", "Bitter Gourd", "Bottle Gourd", "Sweet Potato", "Spring Onion", "Coriander", "Mint",
+    "Curry Leaves", "Drumstick", "Green Beans", "Zucchini", "Celery", "Turnip", "Olive", "Grapefruit"
+  ],
+  "hard": [
+    "Dragon Fruit", "Passion Fruit", "Star Fruit", "Kumquat", "Persimmon", "Mulberry", "Gooseberry", "Cranberry",
+    "Blackberry", "Pomelo", "Rambutan", "Mangosteen", "Durian", "Quince", "Nectarine", "Artichoke", "Asparagus",
+    "Kale", "Leek", "Parsnip", "Fennel", "Brussels Sprouts", "Ridge Gourd", "Snake Gourd", "Ash Gourd",
+    "Colocasia", "Yam", "Lotus Stem", "Raw Banana", "Fenugreek", "Bok Choy", "Jalapeno", "Shallot", "Elderberry",
+    "Kohlrabi"
+  ]
+}

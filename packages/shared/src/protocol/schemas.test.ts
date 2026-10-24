@@ -39,8 +39,12 @@ describe('clientSchemas', () => {
 
 describe('startBlockedReason', () => {
   it('explains missing players', () => {
-    expect(startBlockedReason('traitor', 3)).toBe('Need 2 more players');
+    expect(startBlockedReason('imposter', 1)).toBe('Need 2 more players');
     expect(startBlockedReason('imposter', 2)).toBe('Need 1 more player');
+  });
+
+  it('blocks games that are not built yet', () => {
+    expect(startBlockedReason('traitor', 8)).toBe('Traitor is coming soon');
   });
 
   it('enforces the max', () => {

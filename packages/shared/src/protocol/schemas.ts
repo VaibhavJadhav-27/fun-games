@@ -38,7 +38,13 @@ export const clientSchemas = {
   'room:close': empty,
   'lobby:setGame': z.strictObject({ gameId: gameIdSchema }),
   'lobby:kick': z.strictObject({ playerId: playerIdSchema }),
+  'lobby:setSettings': z.strictObject({ settings: z.unknown() }),
+  'host:reassignSeat': z.strictObject({ fromPlayerId: playerIdSchema, toPlayerId: playerIdSchema }),
   'game:start': empty,
+  'game:action': z.strictObject({ phaseSeq: z.number().int().min(0), action: z.unknown() }),
+  'game:end': empty,
+  'results:playAgain': empty,
+  'results:toLobby': empty,
 } as const;
 
 export type ClientEventName = keyof typeof clientSchemas;

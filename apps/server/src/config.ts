@@ -5,6 +5,8 @@ export interface Config {
   production: boolean;
   allowedOrigin: string | undefined;
   webDist: string;
+  /** Both ADMIN_USERNAME and ADMIN_PASSWORD must be set, or the admin page is off. */
+  admin: { username: string; password: string } | undefined;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -15,5 +17,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     production: env.NODE_ENV === 'production',
     allowedOrigin: env.ALLOWED_ORIGIN || undefined,
     webDist: env.WEB_DIST ?? fileURLToPath(new URL('../../web/dist', import.meta.url)),
+    admin:
+      env.ADMIN_USERNAME && env.ADMIN_PASSWORD
+        ? { username: env.ADMIN_USERNAME, password: env.ADMIN_PASSWORD }
+        : undefined,
   };
 }

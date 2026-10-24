@@ -10,9 +10,11 @@ import {
 } from '@party/shared';
 import { errorFields, log } from '../log';
 import { err, ok, type Result } from '../rooms/result';
+import type { ServerControls } from '../admin/controls';
 import type { Room } from '../rooms/room';
 import type { RoomManager } from '../rooms/roomManager';
 import type { Broadcaster } from './broadcaster';
+import { registerGameHandlers } from './handlers/game';
 import { registerLobbyHandlers } from './handlers/lobby';
 import { registerRoomHandlers } from './handlers/room';
 import { KeyedRateLimiter, TokenBucket } from './rateLimit';
@@ -31,6 +33,7 @@ export interface Gateway {
   manager: RoomManager;
   registry: SocketRegistry;
   broadcaster: Broadcaster;
+  controls: ServerControls;
   createLimiter: KeyedRateLimiter;
   /** Bind a socket to a player, replacing any older socket for that player. */
   bind(socket: AppSocket, room: Room, playerId: PlayerId): void;
@@ -46,12 +49,14 @@ export function createGateway(
   manager: RoomManager,
   registry: SocketRegistry,
   broadcaster: Broadcaster,
+  controls: ServerControls,
   roomCreatesPerMinute = ROOM_CREATES_PER_MINUTE,
 ): Gateway {
   const gateway: Gateway = {
     manager,
     registry,
     broadcaster,
+    controls,
     createLimiter: new KeyedRateLimiter(roomCreatesPerMinute, roomCreatesPerMinute / 60),
 
     bind(socket, room, playerId) {
@@ -95,10 +100,12 @@ export function attachGateway(io: AppServer, gateway: Gateway): void {
   io.on('connection', (socket) => {
     const limiter = new TokenBucket(EVENTS_PER_SECOND, EVENTS_PER_SECOND);
     const on: On = (event, handler) => listen(socket, limiter, event, handler);
+    gateway.broadcaster.serverStatus([socket], gateway.controls.status());
 
     on('time:sync', () => ok({ serverNow: Date.now() }));
     registerRoomHandlers(socket, gateway, on);
     registerLobbyHandlers(socket, gateway, on);
+    registerGameHandlers(socket, gateway, on);
 
     socket.on('disconnect', () => gateway.unbind(socket, { detach: true }));
   });
@@ -118,7 +125,7 @@ function listen<E extends ClientEventName>(
     if (!parsed.success) return reply(failure('BAD_REQUEST'));
     try {
       const result = handler(parsed.data as ParsedClientPayload<E>);
-      reply(result.ok ? { ok: true, data: result.value } : failure(result.code));
+      reply(result.ok ? { ok: true, data: result.value } : failure(result.code, result.message));
     } catch (error) {
       log.error('handler failed', { event, room: socket.data.code, ...errorFields(error) });
       reply(failure('INTERNAL'));
@@ -131,6 +138,6 @@ function listen<E extends ClientEventName>(
   );
 }
 
-function failure(code: ErrorCode): Ack<never> {
-  return { ok: false, error: { code, message: DEFAULT_ERROR_MESSAGES[code] } };
+function failure(code: ErrorCode, message?: string): Ack<never> {
+  return { ok: false, error: { code, message: message ?? DEFAULT_ERROR_MESSAGES[code] } };
 }

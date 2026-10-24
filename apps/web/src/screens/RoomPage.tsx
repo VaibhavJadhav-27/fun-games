@@ -4,8 +4,10 @@ import { resumeRoom } from '../socket/actions';
 import { loadSession } from '../socket/session';
 import { useStore } from '../socket/store';
 import { MessageScreen, Spinner } from '../ui/Screen';
+import { GameRoom } from './GameRoom';
 import { JoinForm } from './JoinForm';
 import { Lobby } from './Lobby';
+import { Results } from './Results';
 import { Waiting } from './Waiting';
 
 const ENDED_COPY: Record<SessionEndReason, { title: string; body: string }> = {
@@ -23,6 +25,7 @@ export function RoomPage({ rawCode }: { rawCode: string }) {
   const boundSocketId = useStore((s) => s.boundSocketId);
   const room = useStore((s) => s.room);
   const playerId = useStore((s) => s.playerId);
+  const view = useStore((s) => s.view);
   const ended = useStore((s) => s.ended);
   const [resumeFailed, setResumeFailed] = useState(false);
   const hasSession = valid && loadSession(code) !== null;
@@ -51,7 +54,10 @@ export function RoomPage({ rawCode }: { rawCode: string }) {
 
   if (room?.code === code && playerId) {
     const me = room.members.find((m) => m.id === playerId);
-    if (me?.seat === 'waiting' && room.status !== 'lobby') return <Waiting room={room} me={playerId} />;
+    if (room.status === 'results' && room.result) return <Results room={room} result={room.result} me={playerId} />;
+    if (room.status === 'playing') {
+      return me?.seat === 'waiting' ? <Waiting room={room} me={playerId} /> : <GameRoom room={room} view={view} me={playerId} />;
+    }
     return <Lobby room={room} me={playerId} />;
   }
 

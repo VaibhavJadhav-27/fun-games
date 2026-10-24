@@ -1,0 +1,22 @@
+{
+  "id": "objects",
+  "name": "Everyday Objects",
+  "easy": [
+    "Phone", "Chair", "Table", "Bed", "Pillow", "Fan", "Clock", "Watch", "Spoon", "Plate", "Cup", "Bottle", "Bag",
+    "Shoe", "Umbrella", "Key", "Pen", "Book", "Comb", "Toothbrush", "Mirror", "Door", "Window", "Lamp",
+    "Television", "Remote", "Car", "Bicycle", "Ball", "Glasses", "Cap", "Bucket", "Soap", "Towel", "Candle"
+  ],
+  "medium": [
+    "Laptop", "Charger", "Headphones", "Camera", "Scissors", "Hammer", "Ladder", "Wallet", "Belt", "Necklace",
+    "Ring", "Sofa", "Cupboard", "Fridge", "Microwave", "Pressure Cooker", "Mixer", "Iron", "Broom", "Mop",
+    "Doormat", "Calendar", "Torch", "Battery", "Rope", "Kite", "Balloon", "Guitar", "Drum", "Tent", "Suitcase",
+    "Perfume", "Lipstick", "Hanger", "Blanket"
+  ],
+  "hard": [
+    "Stapler", "Thermometer", "Hourglass", "Compass", "Binoculars", "Telescope", "Magnifying Glass", "Padlock",
+    "Doorbell", "Extension Cord", "Power Bank", "Hair Dryer", "Tweezers", "Nail Cutter", "Safety Pin",
+    "Rolling Pin", "Grater", "Ladle", "Sieve", "Tongs", "Kettle", "Thermos", "Shoehorn", "Coaster", "Paperweight",
+    "Bookmark", "Measuring Tape", "Screwdriver", "Wrench", "Funnel", "Mousetrap", "Dustpan", "Pogo Stick",
+    "Wind Chime", "Rubber Band"
+  ]
+}

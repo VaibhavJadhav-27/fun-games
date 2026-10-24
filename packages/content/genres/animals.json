@@ -1,0 +1,21 @@
+{
+  "id": "animals",
+  "name": "Animals",
+  "easy": [
+    "Dog", "Cat", "Cow", "Horse", "Elephant", "Lion", "Tiger", "Monkey", "Giraffe", "Zebra", "Bear", "Rabbit",
+    "Snake", "Fish", "Duck", "Hen", "Parrot", "Peacock", "Camel", "Goat", "Sheep", "Pig", "Frog", "Butterfly",
+    "Ant", "Crocodile", "Dolphin", "Shark", "Whale", "Owl", "Mouse", "Donkey", "Deer", "Turtle", "Squirrel"
+  ],
+  "medium": [
+    "Kangaroo", "Penguin", "Panda", "Koala", "Hippopotamus", "Rhinoceros", "Cheetah", "Leopard", "Wolf", "Fox",
+    "Bat", "Eagle", "Crow", "Pigeon", "Sparrow", "Octopus", "Jellyfish", "Crab", "Lobster", "Starfish", "Spider",
+    "Scorpion", "Bee", "Mosquito", "Lizard", "Chameleon", "Gorilla", "Buffalo", "Yak", "Ostrich", "Flamingo",
+    "Swan", "Seal", "Snail", "Polar Bear"
+  ],
+  "hard": [
+    "Platypus", "Armadillo", "Sloth", "Anteater", "Hedgehog", "Porcupine", "Otter", "Beaver", "Mongoose", "Hyena",
+    "Jaguar", "Lynx", "Walrus", "Narwhal", "Manatee", "Stingray", "Seahorse", "Pufferfish", "Chimpanzee",
+    "Orangutan", "Lemur", "Meerkat", "Raccoon", "Skunk", "Alpaca", "Llama", "Bison", "Moose", "Vulture",
+    "Woodpecker", "Toucan", "Pelican", "Firefly", "Grasshopper", "Komodo Dragon"
+  ]
+}

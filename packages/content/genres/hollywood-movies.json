@@ -1,0 +1,27 @@
+{
+  "id": "hollywood-movies",
+  "name": "Hollywood Movies",
+  "easy": [
+    "Titanic", "Avatar", "Frozen", "Jurassic Park", "The Lion King", "Toy Story", "Harry Potter", "Star Wars",
+    "Spider-Man", "Iron Man", "The Avengers", "Batman", "Superman", "Shrek", "Finding Nemo", "Home Alone", "Jaws",
+    "The Matrix", "Rocky", "Up", "Cars", "Minions", "Kung Fu Panda", "Madagascar", "Ice Age", "Coco", "Moana",
+    "Aladdin", "Joker", "Barbie", "King Kong", "Godzilla", "Jumanji", "Transformers", "Cinderella",
+    "The Jungle Book"
+  ],
+  "medium": [
+    "Inception", "Interstellar", "Gladiator", "Top Gun", "Ghostbusters", "Back to the Future", "E.T.",
+    "Oppenheimer", "Black Panther", "Wonder Woman", "Pirates of the Caribbean", "The Godfather", "Forrest Gump",
+    "Mission Impossible", "Fast and Furious", "Mamma Mia", "Grease", "Rambo", "The Terminator", "Life of Pi",
+    "Inside Out", "Zootopia", "Ratatouille", "WALL-E", "Monsters Inc", "The Incredibles", "Despicable Me",
+    "Tangled", "Encanto", "Beauty and the Beast", "Mulan", "Men in Black", "Die Hard", "The Dark Knight",
+    "Deadpool", "Thor", "Aquaman", "Doctor Strange", "Captain America", "Night at the Museum", "The Mask"
+  ],
+  "hard": [
+    "Alien", "Psycho", "Casablanca", "The Exorcist", "The Revenant", "The Martian", "Gravity", "Dune", "Tenet",
+    "La La Land", "Whiplash", "Kill Bill", "Pulp Fiction", "Fight Club", "The Shining", "Shutter Island",
+    "The Prestige", "Memento", "Mrs Doubtfire", "Independence Day", "Armageddon", "Speed", "Rush Hour", "Logan",
+    "Venom", "Ant-Man", "Guardians of the Galaxy", "The Hunger Games", "Twilight", "The Lord of the Rings",
+    "The Hobbit", "Matilda", "Paddington", "The Hangover", "Mean Girls", "The Notebook", "Pretty Woman", "Hachi",
+    "Free Willy", "Stuart Little", "Space Jam", "Happy Feet", "Gremlins", "Wonka"
+  ]
+}
