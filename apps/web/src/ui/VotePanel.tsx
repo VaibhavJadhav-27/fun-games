@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { LiveVote, PlayerId, VoteTarget } from '@party/shared';
-import { gameAction } from '../../socket/actions';
+import { gameAction } from '../socket/actions';
 
 interface Props {
   vote: LiveVote;

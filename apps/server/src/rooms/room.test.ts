@@ -221,7 +221,7 @@ describe('lobby', () => {
     expect(room.setGame(ravi.playerId, 'traitor')).toEqual({ ok: false, code: 'NOT_HOST' });
     expect(room.setGame(host.playerId, 'traitor').ok).toBe(true);
     expect(room.info().gameId).toBe('traitor');
-    expect(room.info().startBlockedReason).toBe('Traitor is coming soon');
+    expect(room.info().startBlockedReason).toBe('Need 3 more players');
   });
 });
 

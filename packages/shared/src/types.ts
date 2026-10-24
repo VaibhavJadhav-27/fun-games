@@ -53,4 +53,6 @@ export interface ServerStatus {
   maintenance: boolean;
   /** A banner on every screen. `id` changes with each new announcement. */
   announcement: { id: number; text: string } | null;
+  /** Games the admin has released. Others show as "Coming soon" and can't be started. */
+  released: GameId[];
 }

@@ -44,7 +44,8 @@ describe('startBlockedReason', () => {
   });
 
   it('blocks games that are not built yet', () => {
-    expect(startBlockedReason('traitor', 8)).toBe('Traitor is coming soon');
+    expect(startBlockedReason('pictionary', 8)).toBe('Pictionary is coming soon');
+    expect(startBlockedReason('traitor', 8)).toBeNull();
   });
 
   it('enforces the max', () => {

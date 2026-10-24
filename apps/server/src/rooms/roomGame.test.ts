@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadWordBank } from '@party/content';
-import { IMPOSTER_VOTE_MS, type ImposterView, type PlayerId } from '@party/shared';
+import { IMPOSTER_VOTE_MS, type ImposterView, type PlayerId, type TraitorView } from '@party/shared';
 import { seededRng } from '../engine/rng';
 import { PRESENCE_GRACE_MS, Room } from './room';
 
@@ -226,5 +226,31 @@ describe('custom word (host moderates)', () => {
     room.leave(host);
     expect(room.host).toBe(ids[1]);
     expect(room.info().settings).toMatchObject({ customWordSet: false });
+  });
+});
+
+describe('traitor in a room', () => {
+  it('needs 5 players, validates settings, and gives each player only their own role', () => {
+    const { room, host, ids } = setup(['Asha', 'Ravi', 'Meera', 'Kiran']);
+    expect(room.setGame(host, 'traitor').ok).toBe(true);
+    expect(room.info().settings).toEqual({ traitors: 'auto', revealVictimRole: false, revealEvictedRole: true });
+    expect(room.info().startBlockedReason).toBe('Need 1 more player');
+    const fifth = room.join('Dev');
+    if (!fifth.ok) throw new Error(fifth.code);
+    expect(room.setSettings(host, { traitors: 2, revealVictimRole: false, revealEvictedRole: true })).toMatchObject({
+      ok: true,
+    });
+    // 2 traitors need 7+ players: clamped back to 1.
+    expect(room.info().settings).toMatchObject({ traitors: 1 });
+    expect(room.start(host).ok).toBe(true);
+
+    const all = [...ids, fifth.value.playerId];
+    const views = all.map((id) => room.gameViewFor(id)?.view as TraitorView);
+    expect(views.every((v) => v.game === 'traitor' && v.phase === 'roles')).toBe(true);
+    const traitors = views.filter((v) => v.you.role === 'traitor');
+    expect(traitors).toHaveLength(1);
+    for (const v of views.filter((x) => x.you.role === 'civilian')) {
+      expect(JSON.stringify(v)).not.toContain('fellowTraitors');
+    }
   });
 });

@@ -3,10 +3,12 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import type { AddressInfo } from 'node:net';
 import sirv from 'sirv';
 import { loadWordBank } from '@party/content';
+import { GAME_IDS, type GameId } from '@party/shared';
 import { AdminAuth, type AdminCredentials } from './admin/auth';
 import { ServerControls } from './admin/controls';
 import { createAdminHandler, type AdminHandler } from './admin/http';
 import type { Rng } from './engine/rng';
+import { gameFor } from './games/registry';
 import { createSocketLayer, type SocketLayer } from './transport/server';
 
 export interface AppOptions {
@@ -26,6 +28,8 @@ export interface AppOptions {
   adminLoginsPerMinute?: number;
   /** Proxies in front of the server; per-IP limits then read X-Forwarded-For. */
   trustProxy?: number;
+  /** Games released at startup. Omitted: every built game. */
+  releasedGames?: GameId[];
 }
 
 export interface App {
@@ -42,7 +46,8 @@ export async function startApp(options: AppOptions): Promise<App> {
 
   let sockets: SocketLayer | null = null;
   let admin: AdminHandler | null = null;
-  const controls = new ServerControls();
+  const built = GAME_IDS.filter((id) => gameFor(id) !== undefined);
+  const controls = new ServerControls(built, options.releasedGames ?? built);
   const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (admin?.handle(req, res)) return;
     if (req.url === '/health') {

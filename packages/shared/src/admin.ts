@@ -17,6 +17,8 @@ export type AdminLogin = z.infer<typeof adminLoginSchema>;
 
 export const adminMaintenanceSchema = z.strictObject({ enabled: z.boolean() });
 
+export const adminReleaseSchema = z.strictObject({ released: z.boolean() });
+
 export const adminAnnouncementSchema = z.strictObject({
   /** Null clears the banner. */
   text: z.string().trim().min(1).max(ANNOUNCEMENT_MAX_LENGTH).nullable(),
@@ -66,5 +68,7 @@ export interface AdminOverview {
   usage: AdminUsage;
   maintenance: boolean;
   announcement: { id: number; text: string; at: number } | null;
+  /** Release switch per game. Unbuilt games are never released. */
+  released: Record<GameId, boolean>;
   rooms: AdminRoom[];
 }

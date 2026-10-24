@@ -1,7 +1,10 @@
 import type { PlayerId, VoteResult } from '@party/shared';
 
+/** Any game's closed vote: final counts and who voted for whom. */
+type ClosedVote = Pick<VoteResult, 'counts' | 'ballots'>;
+
 /** Final counts and who voted for whom. Only shown after the vote closes. */
-export function VoteBreakdown({ result, nameOf }: { result: VoteResult; nameOf(id: PlayerId): string }) {
+export function VoteBreakdown({ result, nameOf }: { result: ClosedVote; nameOf(id: PlayerId): string }) {
   const rows = result.counts
     .filter((c) => c.count > 0)
     .sort((a, b) => b.count - a.count)

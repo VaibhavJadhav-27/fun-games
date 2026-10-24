@@ -14,6 +14,7 @@ const app = await startApp({
   admin: config.admin,
   production: config.production,
   trustProxy: config.trustProxy,
+  releasedGames: config.releasedGames,
 });
 log.info('server listening', { port: app.port, production: config.production, admin: config.admin !== undefined });
 if (config.admin && config.production && config.admin.password.length < 12) {

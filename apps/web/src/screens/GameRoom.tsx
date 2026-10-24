@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { GAME_META, type GameView, type RoomInfo } from '@party/shared';
 import { ImposterScreen } from '../games/imposter/ImposterScreen';
+import { TraitorScreen } from '../games/traitor/TraitorScreen';
 import { endGame, reassignSeat } from '../socket/actions';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -40,6 +41,8 @@ export function GameRoom({ room, view, me }: { room: RoomInfo; view: GameView | 
         <Spinner label="Loading game…" />
       ) : view.game === 'imposter' ? (
         <ImposterScreen view={view} isHost={isHost} />
+      ) : view.game === 'traitor' ? (
+        <TraitorScreen view={view} isHost={isHost} />
       ) : null}
 
       {isHost && <SeatReassign room={room} />}

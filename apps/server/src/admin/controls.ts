@@ -1,11 +1,44 @@
-import type { ServerStatus } from '@party/shared';
+import { GAME_IDS, type GameId, type ServerStatus } from '@party/shared';
 
-/** Server-wide switches the admin controls: maintenance mode and the announcement banner. */
+/**
+ * Server-wide switches the admin controls: maintenance mode, the announcement banner, and
+ * which games are released. In memory: a restart goes back to the defaults it was built with.
+ */
 export class ServerControls {
   private maintenanceOn = false;
+  private readonly releasedGames: Set<GameId>;
   private current: { id: number; text: string; at: number } | null = null;
   private nextId = 1;
   private readonly listeners = new Set<(status: ServerStatus) => void>();
+
+  /**
+   * @param built games that exist on this server (only these can be released)
+   * @param released games released at startup
+   */
+  constructor(
+    private readonly built: readonly GameId[] = GAME_IDS,
+    released: readonly GameId[] = built,
+  ) {
+    this.releasedGames = new Set(released.filter((id) => built.includes(id)));
+  }
+
+  isReleased(gameId: GameId): boolean {
+    return this.releasedGames.has(gameId);
+  }
+
+  /** Returns false for a game that isn't built yet. */
+  setReleased(gameId: GameId, released: boolean): boolean {
+    if (!this.built.includes(gameId)) return false;
+    if (released === this.releasedGames.has(gameId)) return true;
+    if (released) this.releasedGames.add(gameId);
+    else this.releasedGames.delete(gameId);
+    this.notify();
+    return true;
+  }
+
+  releasedMap(): Record<GameId, boolean> {
+    return Object.fromEntries(GAME_IDS.map((id) => [id, this.releasedGames.has(id)])) as Record<GameId, boolean>;
+  }
 
   get maintenance(): boolean {
     return this.maintenanceOn;
@@ -19,6 +52,7 @@ export class ServerControls {
     return {
       maintenance: this.maintenanceOn,
       announcement: this.current ? { id: this.current.id, text: this.current.text } : null,
+      released: GAME_IDS.filter((id) => this.releasedGames.has(id)),
     };
   }
 

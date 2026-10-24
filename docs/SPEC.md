@@ -123,10 +123,13 @@ So the game never stalls, every untimed phase has a host control to move on (**S
 - **Civilians:** everyone else.
 - Traitors see their role **and the names of the other traitors**. Civilians see only "Civilian".
 
+**Before the first night:** everyone checks their role card (hold to reveal). The host taps **Begin the night** when everyone is ready.
+
 **Round loop**
 1. **Night.** Everyone's screen goes dark ("Night — close your eyes").
    - Traitors see a list of living civilians. Each traitor picks a target and taps **Lock**. Traitors can see each other's current picks live, so they can converge.
-   - The night **ends as soon as every living traitor has locked the same target**, and that player is killed.
+   - Civilians get the same list-and-lock screen to **pick a suspect**. It has no effect and nobody else ever sees it; it exists so everyone taps their phone at night.
+   - The night ends once **every living, connected player has locked in** (traitors and civilians alike) **and** every living traitor has locked the same target; that player is killed. Waiting for everyone means the night ends on whoever locks last, so its timing doesn't point at the traitor.
    - Safety cap: if there's no unanimous lock after 60 seconds, the night ends with **nobody killed**.
    - Civilians see a neutral waiting screen. It must look identical for every non-traitor, so nobody can tell who is a traitor by watching phones.
 2. **Morning.** The victim is announced (or "Nobody was killed"). The victim is evicted and becomes a spectator. A setting controls whether the victim's role is revealed (default: no, since victims are always civilians). The host taps **Continue**.
@@ -137,6 +140,8 @@ So the game never stalls, every untimed phase has a host control to move on (**S
 **Win conditions** (checked after every night and every day vote)
 - **Civilians win:** all traitors are evicted.
 - **Traitors win:** living traitors ≥ living civilians.
+
+**Scoring:** civilians win: each civilian +1. Traitors win: each traitor +3. The **whole team** wins and scores, including members who were killed or voted out.
 
 **Away players:** a disconnected player's vote counts as skip. A disconnected traitor is excluded from the unanimous lock after 15 seconds away, so the night isn't blocked.
 
@@ -237,3 +242,6 @@ Client-side hiding is never acceptable. If it's in the network payload, it count
 | 2026-10-24 | Imposter **custom word**: the host types the word and moderates (no role, no vote, not counted as a player; doesn't see the roles). The imposter gets no hint. Single-use; cleared after the game or on host change. (Replaces "No custom word lists in v1" for Imposter.) |
 | 2026-10-24 | The imposter sees the genre as a hint **only on Easy**. On Medium, Hard, Mixed or a custom word, no hint. |
 | 2026-10-24 | **Admin dashboard** at `/admin` (not linked anywhere), with a username/password login set in the server environment. It shows open, active, playing and stale rooms with member names; can close a room or all stale rooms; shows server health and usage stats since the last restart; toggles **maintenance mode** (no new rooms; running games and joins continue); and sends an **announcement** banner to every connected phone. It never shows words or roles. |
+| 2026-10-24 | Traitor: a **role reveal** step before the first night (host taps Begin the night). Civilians **pick a suspect** at night as cover (no effect, never shown). Scoring like Imposter (civilians +1, traitors +3), and the **whole team** wins including dead members. |
+| 2026-10-24 | Traitor night ends when **everyone alive and connected has locked in** and the traitors agree (or at the 60s cap), not the moment the traitors agree: that moment pointed at whoever just tapped. Replaces the 2026-10-18 "ends as soon as all traitors lock" rule. |
+| 2026-10-24 | **Game releases:** the admin can switch each built game on or off. Off keeps it in the game picker as "Coming soon" and nobody can start it; games already running finish. Defaults come from the server environment (production: Imposter only). |

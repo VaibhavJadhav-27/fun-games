@@ -60,6 +60,8 @@ export interface RoomDeps {
   /** A fresh rng per game. Seeded in tests. */
   rng?: () => Rng;
   stats?: UsageStats;
+  /** Whether the admin has released a game. Omitted: every game is. */
+  isReleased?: (gameId: GameId) => boolean;
 }
 
 /**
@@ -213,6 +215,11 @@ export class Room {
   /** The admin closed the room: everyone sees "Room closed". */
   adminClose(): void {
     this.end('closed');
+  }
+
+  /** Something outside the room changed what it shows (e.g. a game was released): resend it. */
+  refresh(): void {
+    this.touch();
   }
 
   /** No member is connected; the room will expire unless someone comes back. */
@@ -416,7 +423,7 @@ export class Room {
   /** Why a game can't start: player count, availability, then the game's own settings rules. */
   private blockedReason(): string | null {
     const count = this.playerCount();
-    const reason = startBlockedReason(this.gameId, count);
+    const reason = startBlockedReason(this.gameId, count, this.deps.isReleased?.(this.gameId) ?? true);
     if (reason) return reason;
     const def = gameFor(this.gameId);
     return def ? def.settings.validate(this.settings.get(this.gameId), count) : null;

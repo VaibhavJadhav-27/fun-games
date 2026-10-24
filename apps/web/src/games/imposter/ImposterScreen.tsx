@@ -6,8 +6,8 @@ import { Card } from '../../ui/Card';
 import { Countdown } from '../../ui/Countdown';
 import { RoleCard } from '../../ui/RoleCard';
 import { TextField } from '../../ui/TextField';
-import { VoteBreakdown } from './VoteBreakdown';
-import { VotePanel } from './VotePanel';
+import { VoteBreakdown } from '../../ui/VoteBreakdown';
+import { VotePanel } from '../../ui/VotePanel';
 
 export function ImposterScreen({ view, isHost }: { view: ImposterView; isHost: boolean }) {
   const nameOf = (id: PlayerId) => view.players.find((p) => p.id === id)?.name ?? 'Someone';

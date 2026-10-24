@@ -56,7 +56,7 @@ export function createSocketLayer(httpServer: HttpServer, options: SocketLayerOp
       },
       closed: () => {},
     },
-    { bank: options.bank, rng: options.rng },
+    { bank: options.bank, rng: options.rng, isReleased: (id) => options.controls.isReleased(id) },
   );
 
   const gateway = createGateway(manager, registry, broadcaster, options.controls, {
@@ -64,7 +64,11 @@ export function createSocketLayer(httpServer: HttpServer, options: SocketLayerOp
     trustProxy: options.trustProxy,
   });
   attachGateway(io, gateway);
-  options.controls.onChange((status) => broadcaster.serverStatus(io.sockets.sockets.values(), status));
+  options.controls.onChange((status) => {
+    broadcaster.serverStatus(io.sockets.sockets.values(), status);
+    // A release switch changes every lobby's "can start" reason.
+    for (const room of manager.list()) room.refresh();
+  });
 
   return {
     io,
