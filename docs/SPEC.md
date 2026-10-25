@@ -150,9 +150,24 @@ So the game never stalls, every untimed phase has a host control to move on (**S
 **Players:** 3–12.
 
 **Settings**
-- **Genres** (multi-select, at least one; see §5), e.g. Bollywood Movies, Bollywood Songs, Fruits, Random Words.
+- **Mode:** Offline (default) or Online. Online shows as "Coming soon" and can't be picked yet.
+- **Genres** (multi-select, at least one; see §5). All genres, including movie and song titles.
 - **Difficulty:** Easy / Medium / Hard / Mixed (default Medium).
-- **Rounds:** default 2; one round = every player draws once.
+
+**Offline mode** (no timers, no points)
+1. Each round the game picks a **drawer** and a **random word**. Picking is fair: nobody draws again until everyone (online) has drawn; then the order reshuffles, avoiding the same drawer twice in a row.
+2. The drawer's phone shows the word and its genre (hold to reveal). The drawer draws it **on paper**; everyone else shouts guesses.
+3. Guessers see "<Name> is drawing" and, **only on Easy**, the genre as a hint.
+4. The drawer can tap **Skip this word** to get a new word (same drawer, same round).
+5. When someone gets it, the host taps **Guessed it!**; if the group gives up, **Nobody got it**. Either way the word is shown to everyone, along with **who draws next** (picked now so they can grab the paper; if they drop off before the next round, someone else is picked). The host taps **Next round**.
+6. The game runs until the host taps **End game**; the summary lists every word, who drew it, and whether it was guessed.
+7. No word repeats within a game. If the drawer goes away mid-round, that round is skipped and someone else draws a new word. Players who are away are skipped when picking the drawer.
+
+### Online mode (coming soon)
+
+The rules below are the planned on-phone version and are not built yet.
+
+**Settings:** as above, plus **Rounds:** default 2; one round = every player draws once.
 
 **Turn loop** (no timers)
 1. **Word choice.** The drawer sees 3 random words from the selected genres and difficulty, each labelled with its genre, and picks one. Nobody else sees the options. The host can **Skip turn** if the drawer is stuck.
@@ -187,9 +202,11 @@ The server must never send a player data they shouldn't see. Each game produces 
 | Traitor: night picks and locks | Living traitors only |
 | Votes in progress: count per name | Everyone, live |
 | Votes in progress: who voted for whom | Nobody until the result screen |
-| Pictionary: word options | Drawer only |
-| Pictionary: chosen word | Drawer, plus each guesser after they guess correctly |
-| Pictionary: correct guess text | Server only; others see "<Name> guessed it!" |
+| Pictionary (offline): the word | Drawer only, until the host taps Guessed it (then everyone) |
+| Pictionary (offline): the genre hint | Drawer always; guessers only on Easy |
+| Pictionary (online): word options | Drawer only |
+| Pictionary (online): chosen word | Drawer, plus each guesser after they guess correctly |
+| Pictionary (online): correct guess text | Server only; others see "<Name> guessed it!" |
 
 Client-side hiding is never acceptable. If it's in the network payload, it counts as visible.
 
@@ -245,3 +262,5 @@ Client-side hiding is never acceptable. If it's in the network payload, it count
 | 2026-10-24 | Traitor: a **role reveal** step before the first night (host taps Begin the night). Civilians **pick a suspect** at night as cover (no effect, never shown). Scoring like Imposter (civilians +1, traitors +3), and the **whole team** wins including dead members. |
 | 2026-10-24 | Traitor night ends when **everyone alive and connected has locked in** and the traitors agree (or at the 60s cap), not the moment the traitors agree: that moment pointed at whoever just tapped. Replaces the 2026-10-18 "ends as soon as all traitors lock" rule. |
 | 2026-10-24 | **Game releases:** the admin can switch each built game on or off. Off keeps it in the game picker as "Coming soon" and nobody can start it; games already running finish. Defaults come from the server environment (production: Imposter only). |
+| 2026-10-25 | Pictionary gets two modes: **Offline** (default; built in M4) and **Online** (the 2026-10-18 on-phone rules; "Coming soon"). Offline: a fair-random drawer gets a random word each round and draws on paper; the drawer can Skip the word; the host taps Guessed it, then Next round; no points; runs until End game. Guessers see the genre only on Easy. |
+| 2026-10-25 | Pictionary offline: the host can also tap **Nobody got it** (reveal, marked not guessed in the summary). The reveal shows **who draws next**. |

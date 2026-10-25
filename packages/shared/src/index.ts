@@ -6,6 +6,7 @@ export * from './games/meta';
 export * from './games/voting';
 export * from './games/imposter';
 export * from './games/traitor';
+export * from './games/pictionary';
 export * from './admin';
 export * from './protocol/errors';
 export * from './protocol/schemas';

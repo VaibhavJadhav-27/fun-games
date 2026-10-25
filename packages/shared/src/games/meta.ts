@@ -44,11 +44,11 @@ export const GAME_META: Record<GameId, GameMeta> = {
     tagline: 'Draw it. Guess it.',
     minPlayers: 3,
     maxPlayers: 12,
-    available: false,
+    available: true,
     rules: [
-      'Take turns drawing a word on your phone.',
-      'Everyone else guesses by typing, or shouting out loud.',
-      'Points for every correct guess, for the guesser and the drawer.',
+      'Each round, one random player gets a secret word on their phone.',
+      'They draw it on paper while everyone else shouts out guesses.',
+      'When someone gets it, the host reveals the word and starts the next round.',
     ],
   },
 };

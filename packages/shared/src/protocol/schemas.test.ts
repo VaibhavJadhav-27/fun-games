@@ -43,8 +43,9 @@ describe('startBlockedReason', () => {
     expect(startBlockedReason('imposter', 2)).toBe('Need 1 more player');
   });
 
-  it('blocks games that are not built yet', () => {
-    expect(startBlockedReason('pictionary', 8)).toBe('Pictionary is coming soon');
+  it('blocks games that are not released', () => {
+    expect(startBlockedReason('pictionary', 8, false)).toBe('Pictionary is coming soon');
+    expect(startBlockedReason('pictionary', 8)).toBeNull();
     expect(startBlockedReason('traitor', 8)).toBeNull();
   });
 

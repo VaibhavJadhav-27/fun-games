@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { GAME_META, type GameView, type RoomInfo } from '@party/shared';
 import { ImposterScreen } from '../games/imposter/ImposterScreen';
+import { PictionaryScreen } from '../games/pictionary/PictionaryScreen';
 import { TraitorScreen } from '../games/traitor/TraitorScreen';
 import { endGame, reassignSeat } from '../socket/actions';
 import { Button } from '../ui/Button';
@@ -13,7 +14,8 @@ export function GameRoom({ room, view, me }: { room: RoomInfo; view: GameView | 
   const [error, setError] = useState<string | null>(null);
 
   async function onEnd() {
-    if (!window.confirm('End the game for everyone? All roles will be revealed.')) return;
+    const reveal = room.gameId === 'pictionary' ? '' : ' All roles will be revealed.';
+    if (!window.confirm(`End the game for everyone?${reveal}`)) return;
     const res = await endGame();
     if (!res.ok) setError(res.error.message);
   }
@@ -43,7 +45,9 @@ export function GameRoom({ room, view, me }: { room: RoomInfo; view: GameView | 
         <ImposterScreen view={view} isHost={isHost} />
       ) : view.game === 'traitor' ? (
         <TraitorScreen view={view} isHost={isHost} />
-      ) : null}
+      ) : (
+        <PictionaryScreen view={view} isHost={isHost} />
+      )}
 
       {isHost && <SeatReassign room={room} />}
     </main>
