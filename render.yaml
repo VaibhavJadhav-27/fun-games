@@ -5,6 +5,9 @@ services:
     name: fun-games
     runtime: node
     plan: free # sleeps after ~15 min idle; use a paid plan for game nights
+    # Closest Render region to players in India. Render can't move an existing service:
+    # changing this means creating the service again (see docs/ARCHITECTURE.md §16).
+    region: singapore
     branch: main
     autoDeploy: true # every push to main redeploys, which ends running games
     # NODE_ENV=production would make pnpm skip the dev tools the build needs (Vite, tsup).
@@ -25,7 +28,7 @@ services:
       # switch them on in /admin. Admin switches reset on restart, so add a game here
       # once it's live for good.
       - key: RELEASED_GAMES
-        value: imposter
+        value: imposter,traitor,pictionary
       # Set these in the Render dashboard (they're secrets, so not in this file).
       # Leave them unset to switch the admin page off.
       - key: ADMIN_USERNAME

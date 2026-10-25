@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import sirv from 'sirv';
@@ -47,7 +48,7 @@ export async function startApp(options: AppOptions): Promise<App> {
   let sockets: SocketLayer | null = null;
   let admin: AdminHandler | null = null;
   const built = GAME_IDS.filter((id) => gameFor(id) !== undefined);
-  const controls = new ServerControls(built, options.releasedGames ?? built);
+  const controls = new ServerControls(built, options.releasedGames ?? built, serveStatic ? readBuildId(options.webDist) : null);
   const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (admin?.handle(req, res)) return;
     if (req.url === '/health') {
@@ -104,4 +105,16 @@ export async function startApp(options: AppOptions): Promise<App> {
       await layer.io.close();
     },
   };
+}
+
+/** The id the web build wrote to version.json (see apps/web/vite.config.ts), or null if missing. */
+function readBuildId(webDist: string | undefined): string | null {
+  if (!webDist) return null;
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(join(webDist, 'version.json'), 'utf8'));
+    const id = typeof parsed === 'object' && parsed !== null && 'id' in parsed ? parsed.id : null;
+    return typeof id === 'string' && id ? id : null;
+  } catch {
+    return null;
+  }
 }

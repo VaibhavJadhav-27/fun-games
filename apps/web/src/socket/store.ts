@@ -36,7 +36,7 @@ export const useStore = create<StoreState>()(() => ({
   boundSocketId: null,
   ended: null,
   // Until the server says otherwise, assume every built game is released (it corrects this on connect).
-  server: { maintenance: false, announcement: null, released: GAME_IDS.filter((id) => GAME_META[id].available) },
+  server: { maintenance: false, announcement: null, released: GAME_IDS.filter((id) => GAME_META[id].available), version: null },
   dismissedAnnouncement: null,
 }));
 

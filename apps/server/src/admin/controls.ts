@@ -14,10 +14,12 @@ export class ServerControls {
   /**
    * @param built games that exist on this server (only these can be released)
    * @param released games released at startup
+   * @param version build id of the web app being served (null in dev)
    */
   constructor(
     private readonly built: readonly GameId[] = GAME_IDS,
     released: readonly GameId[] = built,
+    private readonly version: string | null = null,
   ) {
     this.releasedGames = new Set(released.filter((id) => built.includes(id)));
   }
@@ -53,6 +55,7 @@ export class ServerControls {
       maintenance: this.maintenanceOn,
       announcement: this.current ? { id: this.current.id, text: this.current.text } : null,
       released: GAME_IDS.filter((id) => this.releasedGames.has(id)),
+      version: this.version,
     };
   }
 
