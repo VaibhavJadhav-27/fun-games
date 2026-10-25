@@ -8,10 +8,12 @@ import {
   type GameId,
   type ImposterPublicSettings,
   type MemberInfo,
+  type PictionarySettings,
   type RoomInfo,
   type TraitorSettings,
 } from '@party/shared';
 import { ImposterSettingsPanel } from '../games/imposter/ImposterSettingsPanel';
+import { PictionarySettingsPanel } from '../games/pictionary/PictionarySettingsPanel';
 import { TraitorSettingsPanel } from '../games/traitor/TraitorSettingsPanel';
 import { closeRoom, kickPlayer, leaveRoom, setGame, setSettings, startGame } from '../socket/actions';
 import { useStore } from '../socket/store';
@@ -97,7 +99,7 @@ export function Lobby({ room, me }: { room: RoomInfo; me: string }) {
         onChange={onSettings}
       />
     ) : (
-      <p className="text-sm text-muted">No settings for this game.</p>
+      <PictionarySettingsPanel settings={room.settings as PictionarySettings} editable={isHost} onChange={onSettings} />
     );
 
   const header = (

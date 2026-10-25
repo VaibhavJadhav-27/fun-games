@@ -25,7 +25,7 @@ export function Results({ room, result, me }: { room: RoomInfo; result: GameResu
     <main className="flex flex-1 flex-col gap-4 pt-4 pb-10">
       <header className="flex flex-col items-center gap-1 text-center">
         <p className="text-5xl" aria-hidden>
-          {result.endedBy === 'host' ? '🛑' : won ? '🎉' : '🎭'}
+          {result.gameId === 'pictionary' ? '🎨' : result.endedBy === 'host' ? '🛑' : won ? '🎉' : '🎭'}
         </p>
         <h1 className="text-3xl font-black">{result.headline}</h1>
         {result.detail && <p className="text-muted">{result.detail}</p>}
@@ -47,28 +47,30 @@ export function Results({ room, result, me }: { room: RoomInfo; result: GameResu
         </Card>
       )}
 
-      <Card title="Roles">
-        <ul className="flex flex-col divide-y divide-line">
-          {result.roles.map((r) => (
-            <li key={r.playerId} className="flex min-h-12 items-center justify-between gap-3 py-2">
-              <span className="truncate font-semibold">
-                {r.name}
-                {r.playerId === me && <span className="font-normal text-muted"> (you)</span>}
-              </span>
-              <span className="flex items-center gap-2">
-                {points.has(r.playerId) && <span className="text-sm text-good">+{points.get(r.playerId)}</span>}
-                <span
-                  className={`rounded-full px-3 py-1 text-sm font-semibold ${
-                    r.team === 'evil' ? 'bg-bad/15 text-bad' : 'bg-good/15 text-good'
-                  }`}
-                >
-                  {r.role}
+      {result.roles.length > 0 && (
+        <Card title="Roles">
+          <ul className="flex flex-col divide-y divide-line">
+            {result.roles.map((r) => (
+              <li key={r.playerId} className="flex min-h-12 items-center justify-between gap-3 py-2">
+                <span className="truncate font-semibold">
+                  {r.name}
+                  {r.playerId === me && <span className="font-normal text-muted"> (you)</span>}
                 </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
+                <span className="flex items-center gap-2">
+                  {points.has(r.playerId) && <span className="text-sm text-good">+{points.get(r.playerId)}</span>}
+                  <span
+                    className={`rounded-full px-3 py-1 text-sm font-semibold ${
+                      r.team === 'evil' ? 'bg-bad/15 text-bad' : 'bg-good/15 text-good'
+                    }`}
+                  >
+                    {r.role}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {error && (
         <p role="alert" className="text-center text-sm text-bad">

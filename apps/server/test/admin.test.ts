@@ -227,8 +227,7 @@ describe('admin API', () => {
     expect(await host.call('game:start', {})).toMatchObject({ ok: false, error: { code: 'START_BLOCKED' } });
 
     const overview = (await (await api('/overview', { cookie })).json()) as AdminOverview;
-    expect(overview.released).toMatchObject({ imposter: true, traitor: false, pictionary: false });
-    expect((await api('/games/pictionary', { method: 'PUT', body: { released: true }, cookie })).status).toBe(409);
+    expect(overview.released).toMatchObject({ imposter: true, traitor: false, pictionary: true });
     expect((await api('/games/chess', { method: 'PUT', body: { released: true }, cookie })).status).toBe(404);
 
     await api('/games/traitor', { method: 'PUT', body: { released: true }, cookie });
