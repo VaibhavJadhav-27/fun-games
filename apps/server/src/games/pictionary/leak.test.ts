@@ -23,6 +23,7 @@ function secretsCheck(state: PictionaryState, viewer: string, view: PictionaryVi
     if (raw.includes(JSON.stringify(state.word))) return 'word reached a guesser while drawing';
     if (view.genre !== null && state.settings.difficulty !== 'easy') return 'guesser got a genre hint off Easy';
   }
+  if (state.phase.name === 'drawing' && raw.includes('upNextId')) return 'up next shown while drawing';
   if (raw.includes('usedWords') || raw.includes('history') || raw.includes('queue')) return 'server bookkeeping leaked';
   return null;
 }
@@ -31,7 +32,8 @@ function randomAction(h: PictionaryHarness, view: PictionaryView, id: string): P
   const roll = h.rng();
   if (view.phase === 'drawing') {
     if (view.you.role === 'drawer' && roll < 0.3) return { type: 'skip' };
-    return id === h.host && roll < 0.6 ? { type: 'guessed' } : null;
+    if (id !== h.host) return null;
+    return roll < 0.5 ? { type: 'guessed' } : roll < 0.7 ? { type: 'giveUp' } : null;
   }
   return id === h.host ? { type: 'next' } : null;
 }

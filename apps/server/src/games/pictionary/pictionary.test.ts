@@ -93,7 +93,7 @@ describe('a round', () => {
     expect(h.state.phase.name).toBe('drawing');
     expect(h.state.round).toBe(2);
     expect(h.state.word).not.toBe(word);
-    expect(h.state.history).toEqual([{ round: 1, drawerId: expect.any(String), word }]);
+    expect(h.state.history).toEqual([{ round: 1, drawerId: expect.any(String), word, guessed: true }]);
   });
 
   it('only the host can mark guessed or start the next round', () => {
@@ -104,6 +104,42 @@ describe('a round', () => {
     h.do(h.host, { type: 'guessed' });
     expect(h.act(other, { type: 'next' })).toEqual({ ok: false, error: 'NOT_HOST' });
     expect(h.act(h.host, { type: 'guessed' })).toEqual({ ok: false, error: 'WRONG_PHASE' });
+  });
+
+  it('host taps Nobody got it: the word is revealed as not guessed', () => {
+    const h = new PictionaryHarness(4);
+    const word = h.state.word;
+    expect(h.act(h.ids[1] as string, { type: 'giveUp' })).toEqual({ ok: false, error: 'NOT_HOST' });
+    h.do(h.host, { type: 'giveUp' });
+    expect(pictionary.getPlayerView(h.state, h.ids[1] as string)).toMatchObject({ phase: 'reveal', word, guessed: false });
+    expect(h.act(h.host, { type: 'giveUp' })).toEqual({ ok: false, error: 'WRONG_PHASE' });
+    expect(h.state.history.at(-1)).toMatchObject({ word, guessed: false });
+  });
+
+  it('the reveal shows who draws next, and Next round makes them the drawer', () => {
+    const h = new PictionaryHarness(4);
+    const drawer = h.drawer;
+    expect(h.state.upNextId).toBeNull();
+    h.do(h.host, { type: 'guessed' });
+    const upNext = h.state.upNextId as string;
+    expect(upNext).not.toBeNull();
+    expect(upNext).not.toBe(drawer);
+    for (const id of h.ids) expect(pictionary.getPlayerView(h.state, id)).toMatchObject({ upNextId: upNext });
+    h.do(h.host, { type: 'next' });
+    expect(h.drawer).toBe(upNext);
+    expect(h.state.upNextId).toBeNull();
+  });
+
+  it('if whoever is up next drops out during the reveal, someone else is picked', () => {
+    const h = new PictionaryHarness(4);
+    h.do(h.host, { type: 'guessed' });
+    const upNext = h.state.upNextId as string;
+    h.input({ kind: 'presence', playerId: upNext, online: false });
+    expect(h.state.upNextId).not.toBe(upNext);
+    expect(h.state.upNextId).not.toBeNull();
+    const replacement = h.state.upNextId;
+    h.do(h.host, { type: 'next' });
+    expect(h.drawer).toBe(replacement);
   });
 
   it('the drawer can skip to a new word; nobody else can', () => {
@@ -189,11 +225,18 @@ describe('ending', () => {
     const h = new PictionaryHarness(3);
     const first = h.state.word;
     h.completeRound();
+    const second = h.state.word;
+    h.do(h.host, { type: 'giveUp' });
+    h.do(h.host, { type: 'next' });
     h.do(h.drawer, { type: 'skip' });
     expect(pictionary.result(h.state)).toBeNull();
 
     const result = pictionary.abort(h.state);
     expect(result).toMatchObject({ gameId: 'pictionary', endedBy: 'host', winners: [], roles: [], scores: [] });
-    expect(result.reveals).toEqual([{ label: expect.stringMatching(/^1\. Player \d$/), value: first }]);
+    expect(result.detail).toBe('1 of 2 words guessed.');
+    expect(result.reveals).toEqual([
+      { label: expect.stringMatching(/^1\. Player \d$/), value: first },
+      { label: expect.stringMatching(/^2\. Player \d$/), value: `${second} (not guessed)` },
+    ]);
   });
 });

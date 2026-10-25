@@ -6,7 +6,8 @@ import { Card } from '../../ui/Card';
 import { RoleCard } from '../../ui/RoleCard';
 
 export function PictionaryScreen({ view, isHost }: { view: PictionaryView; isHost: boolean }) {
-  const drawer = view.players.find((p) => p.id === view.drawerId)?.name ?? 'Someone';
+  const nameOf = (id: string) => view.players.find((p) => p.id === id)?.name ?? 'Someone';
+  const drawer = nameOf(view.drawerId);
   const drawing = view.you.role === 'drawer';
 
   return (
@@ -14,11 +15,33 @@ export function PictionaryScreen({ view, isHost }: { view: PictionaryView; isHos
       <p className="text-center text-sm font-semibold tracking-wide text-muted uppercase">Round {view.round}</p>
 
       {view.phase === 'reveal' ? (
-        <div className="rounded-3xl bg-good/15 p-5 text-center" role="status">
-          <p className="text-sm font-semibold tracking-widest text-good uppercase">Guessed it! · {view.genre}</p>
-          <p className="mt-1 text-4xl leading-tight font-black break-words">{view.word}</p>
-          <p className="mt-2 text-muted">{drawing ? 'You drew it.' : `${drawer} drew it.`}</p>
-        </div>
+        <>
+          <div className={`rounded-3xl p-5 text-center ${view.guessed ? 'bg-good/15' : 'bg-panel-2'}`} role="status">
+            <p
+              className={`text-sm font-semibold tracking-widest uppercase ${view.guessed ? 'text-good' : 'text-muted'}`}
+            >
+              {view.guessed ? 'Guessed it!' : 'Nobody got it'} · {view.genre}
+            </p>
+            <p className="mt-1 text-4xl leading-tight font-black break-words">{view.word}</p>
+            <p className="mt-2 text-muted">{drawing ? 'You drew it.' : `${drawer} drew it.`}</p>
+          </div>
+          {view.upNextId && (
+            <p
+              className={`rounded-2xl px-4 py-3 text-center ${
+                view.upNextId === view.you.id ? 'bg-accent/15 font-semibold' : 'bg-panel-2'
+              }`}
+            >
+              {view.upNextId === view.you.id ? (
+                "✏️ You're up next. Grab the paper!"
+              ) : (
+                <>
+                  <span className="text-muted">Up next: </span>
+                  <span className="font-semibold">{nameOf(view.upNextId)}</span>
+                </>
+              )}
+            </p>
+          )}
+        </>
       ) : 'word' in view ? (
         <DrawerPanel key={view.round} word={view.word} genre={view.genre} />
       ) : (
@@ -41,14 +64,19 @@ export function PictionaryScreen({ view, isHost }: { view: PictionaryView; isHos
 
       {isHost ? (
         view.phase === 'drawing' ? (
-          <ActionButton action={{ type: 'guessed' }}>Guessed it!</ActionButton>
+          <div className="flex flex-col gap-2">
+            <ActionButton action={{ type: 'guessed' }}>Guessed it!</ActionButton>
+            <ActionButton action={{ type: 'giveUp' }} variant="secondary">
+              Nobody got it
+            </ActionButton>
+          </div>
         ) : (
           <ActionButton action={{ type: 'next' }}>Next round</ActionButton>
         )
       ) : (
         <p className="text-center text-sm text-muted">
           {view.phase === 'drawing'
-            ? 'The host taps "Guessed it!" when someone gets it.'
+            ? 'The host taps "Guessed it!" when someone gets it, or "Nobody got it" to reveal the word.'
             : 'Waiting for the host to start the next round…'}
         </p>
       )}

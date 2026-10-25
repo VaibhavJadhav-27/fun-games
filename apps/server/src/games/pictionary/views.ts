@@ -21,7 +21,15 @@ export function getPlayerView(state: PictionaryState, viewer: PlayerId): Piction
   const role = viewer === state.drawerId ? ('drawer' as const) : ('guesser' as const);
 
   if (state.phase.name === 'reveal') {
-    return { ...base, phase: 'reveal', you: { id: viewer, role }, word: state.word, genre };
+    return {
+      ...base,
+      phase: 'reveal',
+      you: { id: viewer, role },
+      word: state.word,
+      genre,
+      guessed: state.history.at(-1)?.guessed ?? false,
+      upNextId: state.upNextId,
+    };
   }
   if (role === 'drawer') {
     return { ...base, phase: 'drawing', you: { id: viewer, role }, word: state.word, genre };

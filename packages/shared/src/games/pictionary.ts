@@ -45,6 +45,8 @@ export const pictionaryActionSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('skip') }),
   /** Host: someone guessed it; reveal the word to everyone. */
   z.strictObject({ type: z.literal('guessed') }),
+  /** Host: nobody got it; reveal the word to everyone. */
+  z.strictObject({ type: z.literal('giveUp') }),
   /** Host: start the next round with a new drawer. */
   z.strictObject({ type: z.literal('next') }),
 ]);
@@ -81,13 +83,15 @@ export const guesserViewSchema = z.strictObject({
   genre: z.string().nullable(),
 });
 
-/** After the host marks it guessed, everyone sees the word. */
+/** After the host taps Guessed it or Nobody got it, everyone sees the word and who draws next. */
 export const revealViewSchema = z.strictObject({
   ...base,
   phase: z.literal('reveal'),
   you: z.strictObject({ id: playerIdSchema, role: z.enum(['drawer', 'guesser']) }),
   word: z.string(),
   genre: z.string(),
+  guessed: z.boolean(),
+  upNextId: playerIdSchema.nullable(),
 });
 
 export const pictionaryViewSchema = z.union([drawerViewSchema, guesserViewSchema, revealViewSchema]);

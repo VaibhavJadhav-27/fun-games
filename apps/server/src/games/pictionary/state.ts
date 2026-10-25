@@ -18,8 +18,10 @@ export interface PictionaryState extends BaseState {
   genreId: GenreId;
   /** Normalised words already dealt this game, so none repeats. */
   usedWords: readonly string[];
-  /** Rounds the host marked as guessed, for the end-of-game summary. */
-  history: readonly { round: number; drawerId: PlayerId; word: string }[];
+  /** Finished rounds (guessed or given up), for the end-of-game summary. */
+  history: readonly { round: number; drawerId: PlayerId; word: string; guessed: boolean }[];
+  /** During the reveal: who draws next, so they can get ready. Null while drawing. */
+  upNextId: PlayerId | null;
 }
 
 export function playerName(state: PictionaryState, id: PlayerId): string {

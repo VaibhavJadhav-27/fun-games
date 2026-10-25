@@ -38,15 +38,19 @@ export const pictionary: GameDefinition<PictionaryState, PictionaryAction, Picti
 };
 
 function summarize(state: PictionaryState): GameResult {
-  const guessed = state.history.length;
+  const played = state.history.length;
+  const guessed = state.history.filter((h) => h.guessed).length;
   return {
     gameId: 'pictionary',
     endedBy: 'host',
     headline: 'Thanks for playing!',
-    detail: guessed === 0 ? 'No words were guessed.' : `${guessed} word${guessed === 1 ? '' : 's'} guessed.`,
+    detail: played === 0 ? 'No rounds were played.' : `${guessed} of ${played} word${played === 1 ? '' : 's'} guessed.`,
     winners: [],
     roles: [],
-    reveals: state.history.map((h) => ({ label: `${h.round}. ${playerName(state, h.drawerId)}`, value: h.word })),
+    reveals: state.history.map((h) => ({
+      label: `${h.round}. ${playerName(state, h.drawerId)}`,
+      value: h.guessed ? h.word : `${h.word} (not guessed)`,
+    })),
     scores: [],
   };
 }

@@ -19,6 +19,7 @@ export function setup(input: SetupInput<PictionarySettings>, ctx: GameContext): 
     genreId: settings.genres[0] ?? 'random',
     usedWords: [],
     history: [],
+    upNextId: null,
   };
   return dealWord(nextDrawer(start, ctx), ctx);
 }
@@ -36,6 +37,10 @@ export function reduce(state: PictionaryState, input: GameInput<PictionaryAction
       if (!online && playerId === state.drawerId && state.phase.name === 'drawing') {
         return { ok: true, state: newRound(next, ctx, state.round) };
       }
+      // Whoever was up next dropped out during the reveal: pick someone else.
+      if (!online && playerId === state.upNextId) {
+        return { ok: true, state: pickUpNext(next, ctx) };
+      }
       return { ok: true, state: next };
     }
 
@@ -51,20 +56,21 @@ export function reduce(state: PictionaryState, input: GameInput<PictionaryAction
           return { ok: true, state: dealWord(enter(state, 'drawing'), ctx) };
 
         case 'guessed':
+        case 'giveUp':
           if (!isHost) return { ok: false, error: 'NOT_HOST' };
           if (state.phase.name !== 'drawing') return { ok: false, error: 'WRONG_PHASE' };
-          return {
-            ok: true,
-            state: {
-              ...enter(state, 'reveal'),
-              history: [...state.history, { round: state.round, drawerId: state.drawerId, word: state.word }],
-            },
-          };
+          return { ok: true, state: reveal(state, action.type === 'guessed', ctx) };
 
-        case 'next':
+        case 'next': {
           if (!isHost) return { ok: false, error: 'NOT_HOST' };
           if (state.phase.name !== 'reveal') return { ok: false, error: 'WRONG_PHASE' };
-          return { ok: true, state: newRound(state, ctx, state.round + 1) };
+          const ready = state.upNextId !== null && canDraw(state, state.upNextId);
+          const next = { ...enter(state, 'drawing'), round: state.round + 1, upNextId: null };
+          return {
+            ok: true,
+            state: dealWord(ready ? { ...next, drawerId: state.upNextId as PlayerId } : nextDrawer(next, ctx), ctx),
+          };
+        }
       }
     }
   }
@@ -85,28 +91,53 @@ function newRound(state: PictionaryState, ctx: GameContext, round: number): Pict
   return dealWord(nextDrawer({ ...enter(state, 'drawing'), round }, ctx), ctx);
 }
 
+/** Show the word to everyone, and pick who draws next so they can get ready. */
+function reveal(state: PictionaryState, guessed: boolean, ctx: GameContext): PictionaryState {
+  return pickUpNext(
+    {
+      ...enter(state, 'reveal'),
+      history: [...state.history, { round: state.round, drawerId: state.drawerId, word: state.word, guessed }],
+    },
+    ctx,
+  );
+}
+
+function pickUpNext(state: PictionaryState, ctx: GameContext): PictionaryState {
+  const { drawerId, queue } = pickDrawer(state, ctx);
+  return { ...state, upNextId: drawerId, queue };
+}
+
+function canDraw(state: PictionaryState, id: PlayerId): boolean {
+  return state.online[id] === true && !state.gone.includes(id);
+}
+
+function nextDrawer(state: PictionaryState, ctx: GameContext): PictionaryState {
+  const { drawerId, queue } = pickDrawer(state, ctx);
+  return { ...state, drawerId, queue };
+}
+
 /**
  * The next online player from this cycle's queue. Once nobody in the queue is online, a new
  * cycle starts with everyone still in the game, reshuffled (avoiding the same drawer twice
  * in a row when there's a choice).
  */
-function nextDrawer(state: PictionaryState, ctx: GameContext): PictionaryState {
-  const canDraw = (id: PlayerId) => state.online[id] === true && !state.gone.includes(id);
+function pickDrawer(state: PictionaryState, ctx: GameContext): { drawerId: PlayerId; queue: PlayerId[] } {
+  const can = (id: PlayerId) => canDraw(state, id);
   let queue = state.queue.filter((id) => !state.gone.includes(id));
-  if (!queue.some(canDraw)) {
+  if (!queue.some(can)) {
     queue = shuffle(
       state.players.map((p) => p.id).filter((id) => !state.gone.includes(id)),
       ctx.rng,
     );
-    const first = queue.findIndex(canDraw);
+    const first = queue.findIndex(can);
     if (queue[first] === state.drawerId) {
-      const swap = queue.findIndex((id, i) => i > first && canDraw(id));
+      const swap = queue.findIndex((id, i) => i > first && can(id));
       if (swap !== -1) [queue[first], queue[swap]] = [queue[swap] as PlayerId, queue[first] as PlayerId];
     }
   }
   // Nobody online at all: keep the current drawer (or, at setup, the first seat) until someone comes back.
-  const drawerId = queue.find(canDraw) ?? (state.drawerId || state.players[0]?.id || '');
-  return { ...state, drawerId, queue: queue.filter((id) => id !== drawerId) };
+  const drawerId = queue.find(can) ?? (state.drawerId || state.players[0]?.id || '');
+  return { drawerId, queue: queue.filter((id) => id !== drawerId) };
 }
 
 /** A fresh word the group hasn't had this game (the list starts over if a game uses them all). */

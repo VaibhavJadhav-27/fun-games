@@ -451,8 +451,8 @@ Behaviour follows SPEC §3 and the SPEC decisions log. Phases marked ⏱ have a 
 **Offline mode (built, M4).**
 - **Phases:** `drawing → reveal → drawing…`. No deadlines (`nextWakeup` is always `null`) and `result()` is always `null`: the game ends only through the host's End game (`abort`), whose summary lists the guessed words.
 - **Server state:** `queue` (who still has to draw this cycle), `drawerId`, `word`, `genreId`, `usedWords` (normalised, so nothing repeats; the list starts over if exhausted), `gone` (left/kicked, never picked), `history` (guessed rounds, for the summary).
-- **Actions:** `skip` by the drawer while drawing (new word, same drawer, `phaseSeq` +1 so a stale Guessed it can't apply to the new word); `[host] guessed` while drawing; `[host] next` at reveal.
-- **Drawer picking:** the first online player in `queue`; when nobody in it is online, a new cycle reshuffles everyone not gone, swapping so the last drawer doesn't go first. If the drawer goes away while drawing, a new drawer and word are dealt at the same round number.
+- **Actions:** `skip` by the drawer while drawing (new word, same drawer, `phaseSeq` +1 so a stale Guessed it can't apply to the new word); `[host] guessed` / `[host] giveUp` while drawing (both reveal; `history` records which); `[host] next` at reveal.
+- **Drawer picking:** the first online player in `queue`; when nobody in it is online, a new cycle reshuffles everyone not gone, swapping so the last drawer doesn't go first. The next drawer is picked when the reveal starts (`upNextId`, shown to everyone) and re-picked if they go away before Next round. If the drawer goes away while drawing, a new drawer and word are dealt at the same round number.
 - **Views:** strict per-phase union. While drawing, only the drawer variant has `word`; the guesser variant has `genre` (null unless Easy). The reveal variant gives everyone `word` and `genre`.
 - Online mode is blocked by `settings.validate` until built.
 
