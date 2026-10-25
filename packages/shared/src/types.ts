@@ -55,4 +55,6 @@ export interface ServerStatus {
   announcement: { id: number; text: string } | null;
   /** Games the admin has released. Others show as "Coming soon" and can't be started. */
   released: GameId[];
+  /** Build id of the web app this server serves. A page with a different one is out of date. Null in dev. */
+  version: string | null;
 }
