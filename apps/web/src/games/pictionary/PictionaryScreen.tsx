@@ -20,22 +20,7 @@ export function PictionaryScreen({ view, isHost }: { view: PictionaryView; isHos
           <p className="mt-2 text-muted">{drawing ? 'You drew it.' : `${drawer} drew it.`}</p>
         </div>
       ) : 'word' in view ? (
-        <>
-          <RoleCard hint="Hold to see your word">
-            <span className="text-sm font-semibold tracking-widest text-good uppercase">Draw · {view.genre}</span>
-            <span className="text-4xl leading-tight font-black break-words">{view.word}</span>
-          </RoleCard>
-          <Card title="You're drawing">
-            <div className="flex flex-col gap-4">
-              <p className="text-muted">
-                Draw it on paper: no letters, numbers or talking. Everyone else shouts out guesses.
-              </p>
-              <ActionButton action={{ type: 'skip' }} variant="secondary">
-                Skip this word
-              </ActionButton>
-            </div>
-          </Card>
-        </>
+        <DrawerPanel key={view.round} word={view.word} genre={view.genre} />
       ) : (
         <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-3xl bg-panel p-6 text-center">
           <span aria-hidden className="text-4xl">
@@ -71,13 +56,41 @@ export function PictionaryScreen({ view, isHost }: { view: PictionaryView; isHos
   );
 }
 
+/** The word sits behind a hold-to-reveal card, so a skip needs visible feedback. */
+function DrawerPanel({ word, genre }: { word: string; genre: string }) {
+  const [skips, setSkips] = useState(0);
+  return (
+    <>
+      <RoleCard hint={skips > 0 ? 'New word! Hold to see it' : 'Hold to see your word'}>
+        <span className="text-sm font-semibold tracking-widest text-good uppercase">Draw · {genre}</span>
+        <span className="text-4xl leading-tight font-black break-words">{word}</span>
+      </RoleCard>
+      <Card title="You're drawing">
+        <div className="flex flex-col gap-4">
+          <p className="text-muted">Draw it on paper: no letters, numbers or talking. Everyone else shouts out guesses.</p>
+          {skips > 0 && (
+            <p role="status" className="rounded-2xl bg-good/15 px-4 py-3 text-center text-sm font-semibold text-good">
+              You got a new word{skips > 1 ? ` (skipped ${skips})` : ''}. Hold the card above to see it.
+            </p>
+          )}
+          <ActionButton action={{ type: 'skip' }} variant="secondary" onDone={() => setSkips((n) => n + 1)}>
+            Skip this word
+          </ActionButton>
+        </div>
+      </Card>
+    </>
+  );
+}
+
 function ActionButton({
   action,
   variant,
+  onDone,
   children,
 }: {
   action: PictionaryAction;
   variant?: 'secondary';
+  onDone?: () => void;
   children: string;
 }) {
   const [busy, setBusy] = useState(false);
@@ -88,8 +101,9 @@ function ActionButton({
       busy={busy}
       onClick={async () => {
         setBusy(true);
-        await gameAction(action);
+        const res = await gameAction(action);
         setBusy(false);
+        if (res.ok) onDone?.();
       }}
     >
       {children}
