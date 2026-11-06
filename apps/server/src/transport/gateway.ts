@@ -1,6 +1,7 @@
 import {
   DEFAULT_ERROR_MESSAGES,
   clientSchemas,
+  gameStreamSchema,
   type Ack,
   type AckData,
   type ClientEventName,
@@ -23,6 +24,7 @@ import type { SocketRegistry } from './registry';
 import type { AppServer, AppSocket } from './types';
 
 export const EVENTS_PER_SECOND = 20;
+export const STREAM_EVENTS_PER_SECOND = 40;
 export const ROOM_CREATES_PER_MINUTE = 5;
 
 export interface Membership {
@@ -110,6 +112,7 @@ export function attachGateway(io: AppServer, gateway: Gateway): void {
     registerRoomHandlers(socket, gateway, on);
     registerLobbyHandlers(socket, gateway, on);
     registerGameHandlers(socket, gateway, on);
+    listenStream(socket, gateway);
 
     socket.on('disconnect', () => gateway.unbind(socket, { detach: true }));
   });
@@ -140,6 +143,29 @@ function listen<E extends ClientEventName>(
     event,
     listener,
   );
+}
+
+/**
+ * `game:stream`: no ack, its own (higher) rate limit, and anything invalid is dropped
+ * silently. The room and game decide whether the sender may stream right now.
+ */
+function listenStream(socket: AppSocket, gateway: Gateway): void {
+  const limiter = new TokenBucket(STREAM_EVENTS_PER_SECOND, STREAM_EVENTS_PER_SECOND);
+  const listener = (raw: unknown): void => {
+    if (!limiter.take()) return;
+    const parsed = gameStreamSchema.safeParse(raw);
+    if (!parsed.success) return;
+    try {
+      const member = gateway.membership(socket);
+      if (!member.ok) return;
+      const { room, playerId } = member.value;
+      const op = room.gameStream(playerId, parsed.data.channelKey, parsed.data.op);
+      if (op) gateway.broadcaster.stream(room, playerId, parsed.data.channelKey, op);
+    } catch (error) {
+      log.error('stream handler failed', { room: socket.data.code, ...errorFields(error) });
+    }
+  };
+  (socket as unknown as { on(event: string, fn: (raw: unknown) => void): void }).on('game:stream', listener);
 }
 
 function failure(code: ErrorCode, message?: string): Ack<never> {

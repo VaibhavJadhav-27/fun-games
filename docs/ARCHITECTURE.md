@@ -225,10 +225,8 @@ type GameInput<A> =
   | { kind: 'left'; playerId: PlayerId }             // kicked / left: permanent
   | { kind: 'tick' };                                // ctx.now passed nextWakeup()
 
-type Addressed<N> = { to: 'all' | PlayerId[]; notice: N };   // "So close!" → [guesser]
-
 type Step<S, N> =
-  | { ok: true; state: S; notices?: Addressed<N>[] }   // notices arrive with Pictionary (M4); Imposter needs none
+  | { ok: true; state: S; reply?: GameActionReply }   // reply: ack data for the actor only (Pictionary guess result)
   | { ok: false; error: GameErrorCode };             // NOT_YOUR_TURN, WRONG_PHASE, INVALID_TARGET…
 
 interface GameDefinition<S extends BaseState, A, V extends BaseView, Cfg, N> {
@@ -259,7 +257,7 @@ interface GameDefinition<S extends BaseState, A, V extends BaseView, Cfg, N> {
   stream?: {                             // opt-in high-frequency public channel (§7.4)
     schema: ZodType<StreamOp>;
     canSend(state: S, by: PlayerId): boolean;
-    channelKey(state: S): number | null; // buffer resets when this changes (e.g. turn #)
+    channelKey(state: S): string | null; // buffer resets when this changes (e.g. each new word)
   };
 }
 
@@ -351,17 +349,18 @@ The game result is delivered inside `room:state` (`status: 'results'`, `result`)
 ### 7.4 The stream channel (Pictionary strokes)
 
 ```ts
-type StreamOp =
-  | { t: 'seg'; strokeId: string; color: number; size: 0 | 1 | 2; pts: [number, number][] } // 0–1 normalised, ≤ 64 pts
-  | { t: 'undo'; strokeId: string }
+type StreamOp = // pictionaryStreamOpSchema in shared; GameStreamOp
+  | { t: 'seg'; id: string; color: 0..8; size: 0 | 1 | 2; pts: [number, number][] } // ints on a 0–1000 grid, ≤ 64 pts; color 8 = eraser
+  | { t: 'undo'; id: string }
   | { t: 'clear' };
 ```
 
-- The drawer's client batches points every ~50ms and sends `game:stream`.
-- `StreamRelay` checks `def.stream.canSend(state, by)` and that `channelKey` matches the current `def.stream.channelKey(state)`. It appends the op to the room's buffer and relays it to everyone else. The reducer isn't involved, so there's no state copy or view rebuild at 20 Hz.
-- When `channelKey` changes (a new turn), the buffer is cleared. Clients clear the canvas when they see a new key in their view.
-- **Limits:** 40 ops per second per socket, 64 points per op, and 20,000 points per buffer. Excess ops are dropped. Coordinates are clamped to 0–1.
-- **Late joiners and reconnects** get `game:streamReset` with the buffer compacted (undone strokes removed, everything before the last `clear` removed).
+- The drawer's client batches points every ~50ms and sends `game:stream` (only while connected). Each segment repeats the previous one's last point, so it draws on its own. The drawer applies its own ops locally (the relay skips the sender).
+- `GameRunner.stream` (with `engine/streamRelay.ts`'s `StreamBuffer`) checks that `channelKey` matches the current `def.stream.channelKey(state)` and `def.stream.canSend(state, by)`, parses the op with `def.stream.schema`, and appends it; `Broadcaster.stream` relays it to every game viewer's own socket except the sender's. The reducer isn't involved, so there's no state copy or view rebuild at 20 Hz.
+- When `channelKey` changes (Pictionary: every new word), the buffer is cleared. Clients start a blank board when they see a new key in their view, and ignore ops for any other key.
+- The buffer is kept compacted as ops arrive (`undo` removes that stroke, `clear` empties it), so a snapshot is exactly what's on the board.
+- **Limits:** 40 ops per second per socket (own token bucket; `game:stream` has no ack and isn't in `clientSchemas`), 64 points per op, 4,000 ops and 40,000 points per buffer. Excess or invalid ops are dropped silently.
+- **Late joiners and reconnects** get `game:streamReset` with the snapshot, right after their `game:view`.
 - Strokes are public by definition (everyone sees the drawing), so the relay can't leak a secret. The word never goes through it.
 
 ---
@@ -395,7 +394,7 @@ There is no "emit to room with a game payload" function to misuse.
 - **Votes in progress:** views contain only per-name counts plus `{voted, total}` (SPEC decision: live counts are public). They never contain voter→target pairs, so a phone shows *how many* voted for Ravi but not *who*; the ballots appear only in the result phase view. The player's own current vote is in their own view only.
 - **Traitor night:** every living player gets a view with the same phase name and the same safety-cap deadline. The night ends early when the traitors agree (SPEC decision). That ending tells everyone the traitors agreed, but not who they are, so it's an accepted, identity-free signal. Picks and lock status are only in traitors' views. The web app renders the same full-screen night layout for both roles, so a civilian screen looks the same as a traitor screen to someone watching.
 - **Dead players (Traitor spectators)** get civilian-level information only. They don't learn the traitors, so they can't hint out loud.
-- **Pictionary guesses:** a guess goes in a `game:action`, and the result comes back **only in the sender's ack**. Others get `{to: 'all', notice: 'guessed', name}`. Close guesses are notified to the guesser only. Guesses never go through chat.
+- **Pictionary guesses:** a guess goes in a `game:action`, and the result comes back **only in the sender's ack**. Others get `{to: 'all', notice: 'guessed', name}`. Close guesses are notified to the guesser only. Guesses never go through chat. (Draw board mode, built: the result is the action's `reply` in the ack; the first correct guess ends the round, so others learn who got it from the reveal's `guessedBy` and no notice is needed. Notices arrive with online mode.)
 - **Identifiers carry no information:** PlayerIds are random UUIDs, seat order is shuffled independently of role assignment, and roles are assigned by `rng` after seats are fixed.
 - **Tokens:** session tokens appear only in the create/join ack to their owner. The server stores a SHA-256 hash, and tokens never appear in RoomInfo, logs or errors.
 - **Client store:** the zustand store holds only what the server sent, so nothing beyond the player's own view is ever present.
@@ -455,6 +454,14 @@ Behaviour follows SPEC §3 and the SPEC decisions log. Phases marked ⏱ have a 
 - **Drawer picking:** the first online player in `queue`; when nobody in it is online, a new cycle reshuffles everyone not gone, swapping so the last drawer doesn't go first. The next drawer is picked when the reveal starts (`upNextId`, shown to everyone) and re-picked if they go away before Next round. If the drawer goes away while drawing, a new drawer and word are dealt at the same round number.
 - **Views:** strict per-phase union. While drawing, only the drawer variant has `word`; the guesser variant has `genre` (null unless Easy). The reveal variant gives everyone `word` and `genre`.
 - Online mode is blocked by `settings.validate` until built.
+
+**Draw board mode (built, M4b).** The offline loop plus a canvas, a countdown and typed guesses (SPEC §7, 2026-11-06).
+- **Settings:** `mode: 'board'`, `drawSeconds: 120 | 150 | 180` (zod default 120, so older clients' settings still parse).
+- **Timer:** `dealWord` sets `phase.deadline = now + drawSeconds` in board mode, so setup, Skip, Next round and a drawer drop-out all get a full countdown. `nextWakeup` returns the drawing deadline; the `tick` at or after it reveals with outcome `timeUp`. Offline mode never sets a deadline, so it stays untimed.
+- **State additions:** `wordSeq` (+1 per dealt word; channel key `w<wordSeq>`), `guessedBy`, and `history[].outcome: 'guessed' | 'nobody' | 'timeUp'`.
+- **Actions:** `guess(text)` by a guesser while drawing (board mode only). Correct (normalised match) reveals with `guessedBy`; close/wrong leave the state untouched (no broadcast). The result is the action's `reply` (`{ guess: 'wrong' | 'close' | 'correct' }`) and reaches only the guesser's ack. A guess after the deadline but before the tick reveals as `timeUp`.
+- **Stream:** `channelKey` is `w<wordSeq>` in board mode (kept through the reveal so the drawing stays up), null offline; `canSend` is the drawer while drawing.
+- **Views:** every variant has `mode`, `channelKey` and `deadline` (drawing only). The reveal adds `guessedBy` and `timeUp`. The leak test runs board mode too: random typed guesses with unique markers must never appear in any view.
 
 **Online mode (planned, not built).**
 - **Phases:** `choosing → drawing → turnEnd → (choosing | over)`. There are no deadlines at all, so `nextWakeup` returns `null`.
@@ -555,7 +562,11 @@ Each milestone is one session. It's done only when its acceptance criteria pass,
 - Mode setting (Offline; Online "coming soon"), fair-random drawer, random word from genre and difficulty, drawer Skip, host Guessed it / Next round, no points, end-game word summary (SPEC §7, 2026-10-25).
 - ✅ A full offline game is playable on phones. Only the drawer sees the word until the reveal (leak test over 200 seeds).
 
-**M4b: Pictionary online mode** (later)
+**M4b: Pictionary draw board** (built)
+- The stream channel and relay, the canvas and tools, a host-chosen countdown, typed guesses (first correct ends the round), stream reset on resume.
+- ✅ Drawing feels live across two phones. A player who reconnects mid-round sees the current drawing. Typed guesses never appear in anyone else's payload.
+
+**M4c: Pictionary online mode** (later)
 - The stream channel and relay, the canvas and tools, word choice from genre and difficulty, drawer-revealed hints, guess, close, award and End turn, flat scoring, and stream reset on resume.
 - ✅ Drawing feels live across two phones. A player who reconnects mid-turn sees the current drawing. Correct guesses never appear in anyone else's frames.
 

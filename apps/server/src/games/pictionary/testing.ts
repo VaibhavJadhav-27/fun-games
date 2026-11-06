@@ -60,6 +60,12 @@ export class PictionaryHarness {
     if (!step.ok) throw new Error(`${by} ${action.type}: ${step.error}`);
   }
 
+  /** Move the clock on and deliver the scheduler's tick. */
+  advance(ms: number): Step<PictionaryState> {
+    this.now += ms;
+    return this.input({ kind: 'tick' });
+  }
+
   /** Host marks it guessed, then starts the next round. */
   completeRound(): void {
     this.do(this.host, { type: 'guessed' });

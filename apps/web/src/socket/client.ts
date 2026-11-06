@@ -1,5 +1,6 @@
 import { io, type Socket } from 'socket.io-client';
-import type { ClientToServerEvents, ServerToClientEvents } from '@party/shared';
+import type { ClientToServerEvents, GameView, ServerToClientEvents } from '@party/shared';
+import { applyOp } from './stream';
 import { clearSession, updateSessionPlayer } from './session';
 import { useStore } from './store';
 import { syncClock } from './actions';
@@ -33,13 +34,27 @@ export function startSocket(): void {
     if (room && room.code === info.code && info.rev < room.rev) return;
     // A new game (or no game) means any old view is stale.
     const leftGame = info.status !== 'playing' || room?.status !== 'playing' || room.code !== info.code;
-    useStore.setState(leftGame ? { room: info, view: null, viewRev: -1 } : { room: info });
+    useStore.setState(leftGame ? { room: info, view: null, viewRev: -1, board: null } : { room: info });
   });
 
   socket.on('game:view', ({ rev, view }) => {
     const state = useStore.getState();
     if (state.view && rev < state.viewRev) return;
-    useStore.setState({ view, viewRev: rev });
+    // A new channel (e.g. a new word) starts a blank board; the same one keeps its strokes.
+    const key = channelKeyOf(view);
+    const board = key === null ? null : state.board?.channelKey === key ? state.board : { channelKey: key, ops: [] };
+    useStore.setState({ view, viewRev: rev, board });
+  });
+
+  socket.on('game:stream', ({ channelKey, op }) => {
+    const { board } = useStore.getState();
+    // Ops for any other channel are stale (the view always arrives before a new channel's ops).
+    if (board?.channelKey !== channelKey) return;
+    useStore.setState({ board: { channelKey, ops: applyOp(board.ops, op) } });
+  });
+
+  socket.on('game:streamReset', ({ channelKey, ops }) => {
+    useStore.setState({ board: { channelKey, ops } });
   });
 
   socket.on('server:status', (server) => useStore.setState({ server }));
@@ -47,7 +62,7 @@ export function startSocket(): void {
   socket.on('session:updated', ({ playerId }) => {
     const { room } = useStore.getState();
     if (room) updateSessionPlayer(room.code, playerId);
-    useStore.setState({ playerId, view: null, viewRev: -1 });
+    useStore.setState({ playerId, view: null, viewRev: -1, board: null });
   });
 
   socket.on('session:ended', ({ reason }) => {
@@ -58,10 +73,15 @@ export function startSocket(): void {
       room: null,
       view: null,
       viewRev: -1,
+      board: null,
       playerId: null,
       boundSocketId: null,
     });
   });
 
   socket.connect();
+}
+
+function channelKeyOf(view: GameView): string | null {
+  return 'channelKey' in view ? view.channelKey : null;
 }

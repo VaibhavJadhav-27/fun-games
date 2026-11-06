@@ -93,7 +93,7 @@ describe('a round', () => {
     expect(h.state.phase.name).toBe('drawing');
     expect(h.state.round).toBe(2);
     expect(h.state.word).not.toBe(word);
-    expect(h.state.history).toEqual([{ round: 1, drawerId: expect.any(String), word, guessed: true }]);
+    expect(h.state.history).toEqual([{ round: 1, drawerId: expect.any(String), word, outcome: 'guessed' }]);
   });
 
   it('only the host can mark guessed or start the next round', () => {
@@ -113,7 +113,7 @@ describe('a round', () => {
     h.do(h.host, { type: 'giveUp' });
     expect(pictionary.getPlayerView(h.state, h.ids[1] as string)).toMatchObject({ phase: 'reveal', word, guessed: false });
     expect(h.act(h.host, { type: 'giveUp' })).toEqual({ ok: false, error: 'WRONG_PHASE' });
-    expect(h.state.history.at(-1)).toMatchObject({ word, guessed: false });
+    expect(h.state.history.at(-1)).toMatchObject({ word, outcome: 'nobody' });
   });
 
   it('the reveal shows who draws next, and Next round makes them the drawer', () => {

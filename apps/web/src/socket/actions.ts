@@ -4,6 +4,7 @@ import {
   type AckData,
   type AnyGameSettingsUpdate,
   type ClientEventName,
+  type GameStreamOp,
   type ImposterAction,
   type PictionaryAction,
   type TraitorAction,
@@ -14,6 +15,7 @@ import {
 } from '@party/shared';
 import { socket } from './client';
 import { clearSession, loadSession, saveLastName, saveSession } from './session';
+import { applyOp } from './stream';
 import { useStore } from './store';
 
 const ACK_TIMEOUT_MS = 8000;
@@ -94,6 +96,17 @@ export const reassignSeat = (fromPlayerId: PlayerId, toPlayerId: PlayerId) =>
 export function gameAction(action: ImposterAction | TraitorAction | PictionaryAction) {
   const phaseSeq = useStore.getState().view?.phaseSeq ?? 0;
   return request('game:action', { phaseSeq, action });
+}
+
+/**
+ * Draw on the game's stream channel: shown on our own board at once and relayed to everyone
+ * else (no ack; the server drops anything it doesn't allow).
+ */
+export function sendStreamOp(op: GameStreamOp): void {
+  const { board } = useStore.getState();
+  if (!board) return;
+  useStore.setState({ board: { channelKey: board.channelKey, ops: applyOp(board.ops, op) } });
+  if (socket.connected) socket.emit('game:stream', { channelKey: board.channelKey, op });
 }
 
 export function clearEnded(): void {

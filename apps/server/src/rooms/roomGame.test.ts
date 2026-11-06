@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadWordBank } from '@party/content';
-import { IMPOSTER_VOTE_MS, type ImposterView, type PlayerId, type TraitorView } from '@party/shared';
+import { IMPOSTER_VOTE_MS, type ImposterView, type PictionaryView, type PlayerId, type TraitorView } from '@party/shared';
 import { seededRng } from '../engine/rng';
 import { PRESENCE_GRACE_MS, Room } from './room';
 
@@ -252,5 +252,55 @@ describe('traitor in a room', () => {
     for (const v of views.filter((x) => x.you.role === 'civilian')) {
       expect(JSON.stringify(v)).not.toContain('fellowTraitors');
     }
+  });
+});
+
+describe('pictionary draw board in a room', () => {
+  function startBoard() {
+    const s = setup(['Asha', 'Ravi', 'Meera', 'Kabir']);
+    expect(s.room.setGame(s.host, 'pictionary').ok).toBe(true);
+    expect(s.room.setSettings(s.host, { mode: 'board', genres: ['animals'], difficulty: 'easy', drawSeconds: 120 }).ok).toBe(true);
+    expect(s.room.start(s.host).ok).toBe(true);
+    const pview = (id: PlayerId) => s.room.gameViewFor(id)?.view as PictionaryView;
+    const drawer = pview(s.host).drawerId;
+    const guesser = s.ids.find((id) => id !== drawer) as PlayerId;
+    const key = pview(s.host).channelKey as string;
+    return { ...s, pview, drawer, guesser, key };
+  }
+  const seg = { t: 'seg', id: 's1', color: 2, size: 0, pts: [[10, 20], [30, 40]] };
+
+  it('the scheduler ends the round when time runs out', () => {
+    const { pview, guesser } = startBoard();
+    vi.advanceTimersByTime(119_000);
+    expect(pview(guesser).phase).toBe('drawing');
+    vi.advanceTimersByTime(1_000);
+    expect(pview(guesser)).toMatchObject({ phase: 'reveal', timeUp: true, guessed: false });
+  });
+
+  it('relays only the drawer’s strokes, and a rejoining player gets the whole board', () => {
+    const { room, drawer, guesser, key } = startBoard();
+    expect(room.gameStream(guesser, key, seg)).toBeNull();
+    expect(room.gameStream(drawer, key, seg)).toEqual(seg);
+    expect(room.streamSnapshotFor(guesser)).toEqual({ channelKey: key, ops: [seg] });
+    expect(room.gameViewers()).toHaveLength(4);
+  });
+
+  it('someone who joins mid-game waits: no strokes, no board', () => {
+    const { room, drawer, key } = startBoard();
+    const late = room.join('Late');
+    if (!late.ok) throw new Error(late.code);
+    room.attach(late.value.playerId);
+    expect(room.gameViewers()).not.toContain(late.value.playerId);
+    expect(room.streamSnapshotFor(late.value.playerId)).toBeNull();
+    expect(room.gameStream(late.value.playerId, key, seg)).toBeNull();
+    expect(room.gameStream(drawer, key, seg)).toEqual(seg);
+  });
+
+  it('after End game the board is gone', () => {
+    const { room, host, drawer, key } = startBoard();
+    expect(room.endGame(host).ok).toBe(true);
+    expect(room.gameStream(drawer, key, seg)).toBeNull();
+    expect(room.streamSnapshotFor(drawer)).toBeNull();
+    expect(room.gameViewers()).toEqual([]);
   });
 });

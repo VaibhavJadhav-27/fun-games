@@ -1,10 +1,11 @@
 import type { WordBank } from '@party/content';
-import type { GameResult, GameView, PlayerId } from '@party/shared';
+import type { GameActionReply, GameResult, GameStreamOp, GameView, PlayerId } from '@party/shared';
 import { errorFields, log } from '../log';
 import { err, ok, type Result } from '../rooms/result';
 import { deepFreeze } from './freeze';
 import type { AnyGame, BaseState, GameContext, GameInput, SetupInput } from './game';
 import type { Rng } from './rng';
+import { StreamBuffer } from './streamRelay';
 
 export interface RunnerDeps {
   bank: WordBank;
@@ -24,6 +25,7 @@ export class GameRunner {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private epoch = 0;
   private disposed = false;
+  private readonly streamBuffer = new StreamBuffer();
   /** Increases on every state change; sent with views so clients drop stale ones. */
   rev = 0;
 
@@ -33,6 +35,7 @@ export class GameRunner {
     private readonly deps: RunnerDeps,
   ) {
     this.state = deepFreeze(def.setup(input, this.ctx()));
+    this.syncStream();
     this.arm();
   }
 
@@ -41,14 +44,14 @@ export class GameRunner {
   }
 
   /** Apply a player action: schema-checked and guarded against stale phases. */
-  action(by: PlayerId, isHost: boolean, phaseSeq: number, rawAction: unknown): Result<null> {
+  action(by: PlayerId, isHost: boolean, phaseSeq: number, rawAction: unknown): Result<GameActionReply | null> {
     const parsed = this.def.actionSchema.safeParse(rawAction);
     if (!parsed.success) return err('BAD_REQUEST');
     if (phaseSeq !== this.state.phase.seq) return err('STALE_PHASE');
     return this.dispatch({ kind: 'action', by, isHost, action: parsed.data });
   }
 
-  dispatch(input: GameInput<unknown>): Result<null> {
+  dispatch(input: GameInput<unknown>): Result<GameActionReply | null> {
     if (this.disposed) return err('WRONG_STATUS');
     let step;
     try {
@@ -62,9 +65,34 @@ export class GameRunner {
     if (step.state !== this.state) {
       this.state = deepFreeze(step.state);
       this.rev++;
+      this.syncStream();
       this.arm();
     }
-    return ok(null);
+    return ok(step.reply ?? null);
+  }
+
+  /**
+   * One op on the game's stream channel. Returns the parsed op to relay, or null to drop it
+   * silently (no stream, wrong or stale channel, sender not allowed, bad op, over the cap).
+   */
+  stream(by: PlayerId, channelKey: string, rawOp: unknown): GameStreamOp | null {
+    const spec = this.def.stream;
+    if (!spec || this.disposed) return null;
+    try {
+      if (channelKey !== this.streamBuffer.channelKey || !spec.canSend(this.state, by)) return null;
+      const parsed = spec.schema.safeParse(rawOp);
+      if (!parsed.success) return null;
+      return this.streamBuffer.append(parsed.data) ? parsed.data : null;
+    } catch (error) {
+      log.error('game stream threw', { room: this.deps.roomCode, game: this.def.id, ...errorFields(error) });
+      return null;
+    }
+  }
+
+  /** The open channel and what's on it, for a player joining or resuming mid-round. */
+  streamSnapshot(): { channelKey: string; ops: GameStreamOp[] } | null {
+    const key = this.streamBuffer.channelKey;
+    return key === null ? null : { channelKey: key, ops: this.streamBuffer.snapshot() };
   }
 
   /** The player's view, validated against the game's strict schema. Null = do not send. */
@@ -103,6 +131,17 @@ export class GameRunner {
   /** Test hook: the current (frozen) state. */
   peek(): BaseState {
     return this.state;
+  }
+
+  private syncStream(): void {
+    const spec = this.def.stream;
+    if (!spec) return;
+    try {
+      this.streamBuffer.sync(spec.channelKey(this.state));
+    } catch (error) {
+      log.error('game channelKey threw', { room: this.deps.roomCode, game: this.def.id, ...errorFields(error) });
+      this.streamBuffer.sync(null);
+    }
   }
 
   private ctx(): GameContext {

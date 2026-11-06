@@ -1,5 +1,14 @@
 import { create } from 'zustand';
-import { GAME_IDS, GAME_META, type GameView, type PlayerId, type RoomInfo, type ServerStatus, type SessionEndReason } from '@party/shared';
+import {
+  GAME_IDS,
+  GAME_META,
+  type GameStreamOp,
+  type GameView,
+  type PlayerId,
+  type RoomInfo,
+  type ServerStatus,
+  type SessionEndReason,
+} from '@party/shared';
 
 export type Connection = 'connecting' | 'connected' | 'disconnected';
 
@@ -14,6 +23,8 @@ export interface StoreState {
   /** This player's own game view (only while a game is running). */
   view: GameView | null;
   viewRev: number;
+  /** The game's open stream channel (Pictionary's draw board): compacted ops, newest last. */
+  board: { channelKey: string; ops: GameStreamOp[] } | null;
   playerId: PlayerId | null;
   /** The socket the server has bound to our player; differs from socketId after a reconnect. */
   boundSocketId: string | null;
@@ -32,6 +43,7 @@ export const useStore = create<StoreState>()(() => ({
   room: null,
   view: null,
   viewRev: -1,
+  board: null,
   playerId: null,
   boundSocketId: null,
   ended: null,
