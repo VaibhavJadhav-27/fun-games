@@ -3,6 +3,7 @@ import {
   pictionaryActionSchema,
   pictionaryDefaultSettings,
   pictionarySettingsSchema,
+  pictionaryStreamOpSchema,
   pictionaryViewSchema,
   type GameResult,
   type PictionaryAction,
@@ -12,7 +13,7 @@ import {
 import type { GameDefinition } from '../../engine/game';
 import { nextWakeup, reduce, setup } from './reduce';
 import { playerName, type PictionaryState } from './state';
-import { getPlayerView } from './views';
+import { channelKey, getPlayerView } from './views';
 
 const meta = GAME_META.pictionary;
 
@@ -35,11 +36,19 @@ export const pictionary: GameDefinition<PictionaryState, PictionaryAction, Picti
   // No scores and no winner: the game runs until the host taps End game.
   result: () => null,
   abort: summarize,
+  // Board mode strokes: public; only the drawer sends, only while drawing.
+  stream: {
+    schema: pictionaryStreamOpSchema,
+    channelKey,
+    canSend: (state, by) => state.phase.name === 'drawing' && by === state.drawerId,
+  },
 };
+
+const OUTCOME_SUFFIX = { guessed: '', nobody: ' (not guessed)', timeUp: " (time's up)" } as const;
 
 function summarize(state: PictionaryState): GameResult {
   const played = state.history.length;
-  const guessed = state.history.filter((h) => h.guessed).length;
+  const guessed = state.history.filter((h) => h.outcome === 'guessed').length;
   return {
     gameId: 'pictionary',
     endedBy: 'host',
@@ -49,7 +58,7 @@ function summarize(state: PictionaryState): GameResult {
     roles: [],
     reveals: state.history.map((h) => ({
       label: `${h.round}. ${playerName(state, h.drawerId)}`,
-      value: h.guessed ? h.word : `${h.word} (not guessed)`,
+      value: `${h.word}${OUTCOME_SUFFIX[h.outcome]}`,
     })),
     scores: [],
   };

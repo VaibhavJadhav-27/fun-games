@@ -18,10 +18,21 @@ export interface PictionaryState extends BaseState {
   genreId: GenreId;
   /** Normalised words already dealt this game, so none repeats. */
   usedWords: readonly string[];
-  /** Finished rounds (guessed or given up), for the end-of-game summary. */
-  history: readonly { round: number; drawerId: PlayerId; word: string; guessed: boolean }[];
+  /** +1 for every word dealt. Board mode: names the drawing's stream channel, so a new word gets a blank board. */
+  wordSeq: number;
+  /** Finished rounds, for the end-of-game summary. */
+  history: readonly { round: number; drawerId: PlayerId; word: string; outcome: RoundOutcome }[];
+  /** Board mode, during the reveal: who typed the correct guess (null if the host tapped). */
+  guessedBy: PlayerId | null;
   /** During the reveal: who draws next, so they can get ready. Null while drawing. */
   upNextId: PlayerId | null;
+}
+
+/** guessed: someone got it; nobody: the host gave up; timeUp: board mode's countdown ran out. */
+export type RoundOutcome = 'guessed' | 'nobody' | 'timeUp';
+
+export function isBoard(state: PictionaryState): boolean {
+  return state.settings.mode === 'board';
 }
 
 export function playerName(state: PictionaryState, id: PlayerId): string {

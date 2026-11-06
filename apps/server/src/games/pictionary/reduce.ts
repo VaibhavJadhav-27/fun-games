@@ -1,8 +1,8 @@
 import type { PictionaryAction, PictionaryPhase, PictionarySettings, PlayerId } from '@party/shared';
 import type { GameContext, GameInput, SetupInput, Step } from '../../engine/game';
 import { shuffle } from '../../engine/rng';
-import { normalizeGuess, pickWords, type PickedWord } from '../../engine/words';
-import type { PictionaryState } from './state';
+import { isCloseGuess, isCorrectGuess, normalizeGuess, pickWords, type PickedWord } from '../../engine/words';
+import { isBoard, type PictionaryState, type RoundOutcome } from './state';
 
 export function setup(input: SetupInput<PictionarySettings>, ctx: GameContext): PictionaryState {
   const { players, settings } = input;
@@ -18,7 +18,9 @@ export function setup(input: SetupInput<PictionarySettings>, ctx: GameContext): 
     word: '',
     genreId: settings.genres[0] ?? 'random',
     usedWords: [],
+    wordSeq: 0,
     history: [],
+    guessedBy: null,
     upNextId: null,
   };
   return dealWord(nextDrawer(start, ctx), ctx);
@@ -45,6 +47,8 @@ export function reduce(state: PictionaryState, input: GameInput<PictionaryAction
     }
 
     case 'tick':
+      // Board mode: the countdown ran out before anyone got it.
+      if (timeIsUp(state, ctx)) return { ok: true, state: reveal(state, 'timeUp', null, ctx) };
       return { ok: true, state };
 
     case 'action': {
@@ -59,13 +63,26 @@ export function reduce(state: PictionaryState, input: GameInput<PictionaryAction
         case 'giveUp':
           if (!isHost) return { ok: false, error: 'NOT_HOST' };
           if (state.phase.name !== 'drawing') return { ok: false, error: 'WRONG_PHASE' };
-          return { ok: true, state: reveal(state, action.type === 'guessed', ctx) };
+          return { ok: true, state: reveal(state, action.type === 'guessed' ? 'guessed' : 'nobody', null, ctx) };
+
+        case 'guess': {
+          if (!isBoard(state)) return { ok: false, error: 'NOT_ALLOWED' };
+          if (state.phase.name !== 'drawing') return { ok: false, error: 'WRONG_PHASE' };
+          if (by === state.drawerId) return { ok: false, error: 'NOT_ALLOWED' };
+          // Time is up but the tick hasn't landed yet: the guess no longer counts.
+          if (timeIsUp(state, ctx)) return { ok: true, state: reveal(state, 'timeUp', null, ctx) };
+          // The guess text only ever comes back in this player's ack (SPEC section 4).
+          if (isCorrectGuess(action.text, state.word)) {
+            return { ok: true, state: reveal(state, 'guessed', by, ctx), reply: { guess: 'correct' } };
+          }
+          return { ok: true, state, reply: { guess: isCloseGuess(action.text, state.word) ? 'close' : 'wrong' } };
+        }
 
         case 'next': {
           if (!isHost) return { ok: false, error: 'NOT_HOST' };
           if (state.phase.name !== 'reveal') return { ok: false, error: 'WRONG_PHASE' };
           const ready = state.upNextId !== null && canDraw(state, state.upNextId);
-          const next = { ...enter(state, 'drawing'), round: state.round + 1, upNextId: null };
+          const next = { ...enter(state, 'drawing'), round: state.round + 1, upNextId: null, guessedBy: null };
           return {
             ok: true,
             state: dealWord(ready ? { ...next, drawerId: state.upNextId as PlayerId } : nextDrawer(next, ctx), ctx),
@@ -76,9 +93,9 @@ export function reduce(state: PictionaryState, input: GameInput<PictionaryAction
   }
 }
 
-/** Untimed: rounds move on only when the host (or drawer) taps. */
-export function nextWakeup(): number | null {
-  return null;
+/** Board mode wakes up when the round's time runs out. Offline mode is untimed (no deadline). */
+export function nextWakeup(state: PictionaryState): number | null {
+  return state.phase.name === 'drawing' ? state.phase.deadline : null;
 }
 
 // ── Transitions ─────────────────────────────────────────────────────────────
@@ -91,12 +108,17 @@ function newRound(state: PictionaryState, ctx: GameContext, round: number): Pict
   return dealWord(nextDrawer({ ...enter(state, 'drawing'), round }, ctx), ctx);
 }
 
+function timeIsUp(state: PictionaryState, ctx: GameContext): boolean {
+  return state.phase.name === 'drawing' && state.phase.deadline !== null && ctx.now >= state.phase.deadline;
+}
+
 /** Show the word to everyone, and pick who draws next so they can get ready. */
-function reveal(state: PictionaryState, guessed: boolean, ctx: GameContext): PictionaryState {
+function reveal(state: PictionaryState, outcome: RoundOutcome, guessedBy: PlayerId | null, ctx: GameContext): PictionaryState {
   return pickUpNext(
     {
       ...enter(state, 'reveal'),
-      history: [...state.history, { round: state.round, drawerId: state.drawerId, word: state.word, guessed }],
+      guessedBy,
+      history: [...state.history, { round: state.round, drawerId: state.drawerId, word: state.word, outcome }],
     },
     ctx,
   );
@@ -140,7 +162,10 @@ function pickDrawer(state: PictionaryState, ctx: GameContext): { drawerId: Playe
   return { drawerId, queue: queue.filter((id) => id !== drawerId) };
 }
 
-/** A fresh word the group hasn't had this game (the list starts over if a game uses them all). */
+/**
+ * A fresh word the group hasn't had this game (the list starts over if a game uses them all).
+ * Board mode: a new word also means a blank board and a full countdown.
+ */
 function dealWord(state: PictionaryState, ctx: GameContext): PictionaryState {
   const { genres, difficulty } = state.settings;
   const used = new Set(state.usedWords);
@@ -153,5 +178,13 @@ function dealWord(state: PictionaryState, ctx: GameContext): PictionaryState {
   }
   if (!picked) return state;
   used.add(normalizeGuess(picked.text));
-  return { ...state, word: picked.text, genreId: picked.genreId, usedWords: [...used] };
+  const deadline = isBoard(state) ? ctx.now + state.settings.drawSeconds * 1000 : null;
+  return {
+    ...state,
+    phase: { ...state.phase, deadline },
+    word: picked.text,
+    genreId: picked.genreId,
+    usedWords: [...used],
+    wordSeq: state.wordSeq + 1,
+  };
 }

@@ -1,5 +1,5 @@
 import { genreName, type PictionaryView, type PlayerId } from '@party/shared';
-import type { PictionaryState } from './state';
+import { isBoard, type PictionaryState } from './state';
 
 /**
  * Builds one player's view field by field (never spreads state). While drawing, only the
@@ -12,7 +12,9 @@ export function getPlayerView(state: PictionaryState, viewer: PlayerId): Piction
   const base = {
     game: 'pictionary' as const,
     phaseSeq: state.phase.seq,
-    deadline: null,
+    deadline: state.phase.name === 'drawing' ? state.phase.deadline : null,
+    mode: isBoard(state) ? ('board' as const) : ('offline' as const),
+    channelKey: channelKey(state),
     round: state.round,
     players: state.players.map((p) => ({ id: p.id, name: p.name })),
     drawerId: state.drawerId,
@@ -27,7 +29,9 @@ export function getPlayerView(state: PictionaryState, viewer: PlayerId): Piction
       you: { id: viewer, role },
       word: state.word,
       genre,
-      guessed: state.history.at(-1)?.guessed ?? false,
+      guessed: state.history.at(-1)?.outcome === 'guessed',
+      guessedBy: state.guessedBy,
+      timeUp: state.history.at(-1)?.outcome === 'timeUp',
       upNextId: state.upNextId,
     };
   }
@@ -41,4 +45,9 @@ export function getPlayerView(state: PictionaryState, viewer: PlayerId): Piction
     // The genre is the guessers' only hint, and only on Easy (SPEC §7, 2026-10-25).
     genre: state.settings.difficulty === 'easy' ? genre : null,
   };
+}
+
+/** Board mode: the current drawing's stream channel (kept through the reveal so it stays on screen). */
+export function channelKey(state: PictionaryState): string | null {
+  return isBoard(state) ? `w${state.wordSeq}` : null;
 }

@@ -6,8 +6,10 @@ import {
   type AdminRoom,
   startBlockedReason,
   type AnyGameSettings,
+  type GameActionReply,
   type GameId,
   type GameResult,
+  type GameStreamOp,
   type GameView,
   type MemberInfo,
   type PlayerId,
@@ -331,13 +333,33 @@ export class Room {
 
   // ── Game ──────────────────────────────────────────────────────────────────
 
-  gameAction(by: PlayerId, phaseSeq: number, action: unknown): Result<null> {
+  gameAction(by: PlayerId, phaseSeq: number, action: unknown): Result<GameActionReply | null> {
     if (this.status !== 'playing' || !this.runner) return err('WRONG_STATUS');
     const member = this.members.get(by);
     if (!member || member.seat !== 'playing' || member.presence === 'left') return err('NOT_ALLOWED');
     const result = this.runner.action(by, by === this.hostId, phaseSeq, action);
     if (result.ok) this.afterGameStep();
     return result;
+  }
+
+  /** One op on the game's public stream channel. Returns the op to relay to others, or null. */
+  gameStream(by: PlayerId, channelKey: string, op: unknown): GameStreamOp | null {
+    if (this.status !== 'playing' || !this.runner || !this.isViewer(by)) return null;
+    const relayed = this.runner.stream(by, channelKey, op);
+    if (relayed) this.lastActiveAt = Date.now();
+    return relayed;
+  }
+
+  /** The open stream channel and its ops, for a player who (re)joins mid-round. */
+  streamSnapshotFor(playerId: PlayerId): { channelKey: string; ops: GameStreamOp[] } | null {
+    if (this.status !== 'playing' || !this.runner || !this.isViewer(playerId)) return null;
+    return this.runner.streamSnapshot();
+  }
+
+  /** Players who get game views (and stream ops): seated in the game and not gone. */
+  gameViewers(): PlayerId[] {
+    if (this.status !== 'playing') return [];
+    return [...this.members.keys()].filter((id) => this.isViewer(id));
   }
 
   endGame(by: PlayerId): Result<null> {
@@ -367,8 +389,7 @@ export class Room {
   /** This player's validated view, or null if they shouldn't get one (or it failed validation). */
   gameViewFor(playerId: PlayerId): { rev: number; view: GameView } | null {
     if (this.status !== 'playing' || !this.runner) return null;
-    const member = this.members.get(playerId);
-    if (!member || member.seat !== 'playing' || member.presence === 'left') return null;
+    if (!this.isViewer(playerId)) return null;
     const view = this.runner.view(playerId);
     return view ? { rev: this.runner.rev, view } : null;
   }
@@ -489,6 +510,11 @@ export class Room {
     if (!this.runner || this.members.get(input.playerId)?.seat !== 'playing') return;
     const result = this.runner.dispatch(input);
     if (result.ok) this.afterGameStep();
+  }
+
+  private isViewer(playerId: PlayerId): boolean {
+    const member = this.members.get(playerId);
+    return member !== undefined && member.seat === 'playing' && member.presence !== 'left';
   }
 
   private afterGameStep(): void {

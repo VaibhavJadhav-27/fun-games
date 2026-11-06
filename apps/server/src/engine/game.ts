@@ -1,6 +1,6 @@
 import type { ZodType } from 'zod';
 import type { WordBank } from '@party/content';
-import type { GameId, GameResult, PlayerId } from '@party/shared';
+import type { GameActionReply, GameId, GameResult, GameStreamOp, PlayerId } from '@party/shared';
 import type { Rng } from './rng';
 
 /** Everything impure a game may use, injected so games stay pure and testable. */
@@ -44,7 +44,10 @@ export type GameInput<A> =
 
 export type GameErrorCode = 'WRONG_PHASE' | 'NOT_ALLOWED' | 'INVALID_TARGET' | 'NOT_HOST';
 
-export type Step<S> = { ok: true; state: S } | { ok: false; error: GameErrorCode };
+export type Step<S> =
+  /** `reply` goes back in the acting player's ack only (never broadcast). */
+  | { ok: true; state: S; reply?: GameActionReply }
+  | { ok: false; error: GameErrorCode };
 
 /**
  * A game plugin (ARCHITECTURE §6). Pure: no I/O, no Date, no Math.random, no mutation.
@@ -83,6 +86,17 @@ export interface GameDefinition<S extends BaseState, A, V, Cfg> {
   result(state: S): GameResult | null;
   /** Host ended the game early: every role revealed, no winner. */
   abort(state: S): GameResult;
+  /**
+   * Opt-in high-frequency public channel (ARCHITECTURE §7.4), e.g. Pictionary strokes. Ops
+   * skip the reducer: the relay checks `canSend`, buffers them and sends them to everyone
+   * else. Only public data may go through it.
+   */
+  stream?: {
+    schema: ZodType<GameStreamOp>;
+    /** The open channel, or null when nothing may be streamed. The buffer resets when it changes. */
+    channelKey(state: S): string | null;
+    canSend(state: S, by: PlayerId): boolean;
+  };
 }
 
 /** Type-erased definition, so the registry and runner can hold any game. */

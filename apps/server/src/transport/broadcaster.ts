@@ -1,4 +1,4 @@
-import type { PlayerId, ServerStatus, SessionEndReason } from '@party/shared';
+import type { GameStreamOp, PlayerId, ServerStatus, SessionEndReason } from '@party/shared';
 import type { Room } from '../rooms/room';
 import type { SocketRegistry } from './registry';
 import type { AppSocket } from './types';
@@ -35,6 +35,18 @@ export class Broadcaster {
   roomStateTo(socket: AppSocket, room: Room): void {
     this.pendingDirect.set(socket, room);
     this.schedule();
+  }
+
+  /**
+   * Relay one public stream op to every game viewer's own socket except the sender's. Sent
+   * at once (not coalesced): strokes must feel live.
+   */
+  stream(room: Room, from: PlayerId, channelKey: string, op: GameStreamOp): void {
+    if (room.isClosed) return;
+    for (const id of room.gameViewers()) {
+      if (id === from) continue;
+      this.registry.get(room.code, id)?.emit('game:stream', { channelKey, op });
+    }
   }
 
   sessionEnded(socket: AppSocket, reason: SessionEndReason): void {
@@ -88,6 +100,9 @@ export class Broadcaster {
       const { code, playerId } = socket.data;
       if (code === room.code && playerId !== undefined && !room.isClosed) {
         this.sendView(socket, room, playerId, viewed);
+        // A (re)joining player gets what's already on the board.
+        const snapshot = room.streamSnapshotFor(playerId);
+        if (snapshot) socket.emit('game:streamReset', snapshot);
       }
     }
 

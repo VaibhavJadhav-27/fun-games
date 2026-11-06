@@ -47,6 +47,13 @@ export const clientSchemas = {
   'results:toLobby': empty,
 } as const;
 
+/**
+ * `game:stream` is separate from `clientSchemas`: it has no ack and its own rate limit.
+ * The op itself is checked by the game's stream schema.
+ */
+export const gameStreamSchema = z.strictObject({ channelKey: z.string().min(1).max(64), op: z.unknown() });
+export type GameStreamPayload = z.output<typeof gameStreamSchema>;
+
 export type ClientEventName = keyof typeof clientSchemas;
 export type ClientPayload<E extends ClientEventName> = z.input<(typeof clientSchemas)[E]>;
 export type ParsedClientPayload<E extends ClientEventName> = z.output<(typeof clientSchemas)[E]>;

@@ -150,7 +150,8 @@ So the game never stalls, every untimed phase has a host control to move on (**S
 **Players:** 3–12.
 
 **Settings**
-- **Mode:** Offline (default) or Online. Online shows as "Coming soon" and can't be picked yet.
+- **Mode:** Offline (default, paper), Draw board, or Online. Online shows as "Coming soon" and can't be picked yet.
+- **Draw time** (Draw board only): 2, 2½ or 3 minutes (default 2).
 - **Genres** (multi-select, at least one; see §5). All genres, including movie and song titles.
 - **Difficulty:** Easy / Medium / Hard / Mixed (default Medium).
 
@@ -162,6 +163,14 @@ So the game never stalls, every untimed phase has a host control to move on (**S
 5. When someone gets it, the host taps **Guessed it!**; if the group gives up, **Nobody got it**. Either way the word is shown to everyone, along with **who draws next** (picked now so they can grab the paper; if they drop off before the next round, someone else is picked). The host taps **Next round**.
 6. The game runs until the host taps **End game**; the summary lists every word, who drew it, and whether it was guessed.
 7. No word repeats within a game. If the drawer goes away mid-round, that round is skipped and someone else draws a new word. Players who are away are skipped when picking the drawer.
+
+**Draw board mode** (timed, no points). Everything in Offline mode applies, with these changes:
+1. The drawer draws on a **canvas on their phone**: pen, 3 sizes, 8 colours, eraser, undo, clear. Strokes stream live to every other player's screen.
+2. Each round has a **countdown** of the chosen draw time, shown to everyone. **Skip this word** clears the board and starts a full new countdown. A new drawer (after a drop-out) also gets a blank board and a full countdown.
+3. Guessers can **type guesses** and can still shout them. Matching is case-insensitive, ignores extra spaces and punctuation; one character off is "So close!", shown to that guesser only. Wrong and close guesses are never shown to anyone else. The drawer can't guess.
+4. The **first correct typed guess ends the round**: the word is revealed to everyone with "<Name> guessed it!". The host can still tap **Guessed it!** (for a shouted answer) or **Nobody got it** at any time.
+5. **Time's up** ends the round as not guessed: the word is revealed and the summary marks it "time's up".
+6. The reveal, who draws next, Next round, End game and the summary work as in Offline mode. No points.
 
 ### Online mode (coming soon)
 
@@ -204,6 +213,9 @@ The server must never send a player data they shouldn't see. Each game produces 
 | Votes in progress: who voted for whom | Nobody until the result screen |
 | Pictionary (offline): the word | Drawer only, until the host taps Guessed it (then everyone) |
 | Pictionary (offline): the genre hint | Drawer always; guessers only on Easy |
+| Pictionary (draw board): the word | As offline; until the reveal no other payload contains it (a correct guess ends the round) |
+| Pictionary (draw board): typed guesses | The guesser only (in their action's reply); never sent to anyone else |
+| Pictionary (draw board): strokes | Everyone (public by design) |
 | Pictionary (online): word options | Drawer only |
 | Pictionary (online): chosen word | Drawer, plus each guesser after they guess correctly |
 | Pictionary (online): correct guess text | Server only; others see "<Name> guessed it!" |
@@ -264,3 +276,4 @@ Client-side hiding is never acceptable. If it's in the network payload, it count
 | 2026-10-24 | **Game releases:** the admin can switch each built game on or off. Off keeps it in the game picker as "Coming soon" and nobody can start it; games already running finish. Defaults come from the server environment (production: Imposter only). |
 | 2026-10-25 | Pictionary gets two modes: **Offline** (default; built in M4) and **Online** (the 2026-10-18 on-phone rules; "Coming soon"). Offline: a fair-random drawer gets a random word each round and draws on paper; the drawer can Skip the word; the host taps Guessed it, then Next round; no points; runs until End game. Guessers see the genre only on Easy. |
 | 2026-10-25 | Pictionary offline: the host can also tap **Nobody got it** (reveal, marked not guessed in the summary). The reveal shows **who draws next**. |
+| 2026-11-06 | Pictionary gets a third mode, **Draw board**: the offline loop plus a canvas on the drawer's phone streamed live to everyone, and a host-chosen countdown (2 / 2½ / 3 min, default 2; Skip restarts it). Guessers can type guesses (auto-checked, private) and shout them; the first correct typed guess or the host's Guessed it ends the round; time's up reveals it as not guessed. No points. For this mode only, replaces the 2026-10-18 "Pictionary is untimed" rule. Online mode stays "Coming soon". |
